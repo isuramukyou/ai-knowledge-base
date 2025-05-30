@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
       : undefined
     const type = searchParams.get("type") || undefined
 
+    console.log("Fetching knowledge items with params:", { page, limit, search, categoryId, type })
+
     const { items, total } = await getAllKnowledgeItems(page, limit, search, categoryId, type)
+
+    console.log(`Found ${items.length} knowledge items out of ${total} total`)
 
     return NextResponse.json({
       items,
@@ -26,7 +30,13 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error fetching knowledge items:", error)
-    return NextResponse.json({ error: "Failed to fetch knowledge items" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to fetch knowledge items",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -35,9 +45,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Проверка авторизации
-    const telegramId = request.headers.get("x-telegram-id")
+    const telegramId = request.headers.get("x-telegram-id") || localStorage?.getItem("telegram_id")
     if (!telegramId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized: Telegram ID required" }, { status: 401 })
     }
 
     const user = await getUserByTelegramId(telegramId)
@@ -45,10 +55,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized or account blocked" }, { status: 401 })
     }
 
+    console.log("Creating knowledge item for user:", user.id)
+
     // Валидация данных
     const { title, description, type, category_id } = body
     if (!title || !description || !type || !category_id) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Missing required fields: title, description, type, category_id" },
+        { status: 400 },
+      )
     }
 
     // Проверка типа
@@ -67,9 +82,17 @@ export async function POST(request: NextRequest) {
       author_id: user.id,
     })
 
+    console.log("Knowledge item created successfully:", item.id)
+
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
     console.error("Error creating knowledge item:", error)
-    return NextResponse.json({ error: "Failed to create knowledge item" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to create knowledge item",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

@@ -78,9 +78,10 @@ export default function AdminPage() {
       params.set("page", page.toString())
       params.set("limit", "10")
 
+      const telegramId = localStorage.getItem("telegram_id")
       const response = await fetch(`/api/admin/users?${params.toString()}`, {
         headers: {
-          "x-telegram-id": localStorage.getItem("telegram_id") || "",
+          "x-telegram-id": telegramId || "",
         },
       })
 
@@ -135,18 +136,20 @@ export default function AdminPage() {
   // Блокировка/разблокировка пользователя
   const toggleUserBlock = async (userId: number, isBlocked: boolean) => {
     try {
+      const telegramId = localStorage.getItem("telegram_id")
       const response = await fetch(`/api/admin/users/${userId}/block`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-telegram-id": localStorage.getItem("telegram_id") || "",
+          "x-telegram-id": telegramId || "",
         },
         body: JSON.stringify({ isBlocked }),
       })
 
       if (response.ok) {
-        const updatedUser = await response.json()
         setUsers(users.map((user) => (user.id === userId ? { ...user, is_blocked: isBlocked } : user)))
+      } else {
+        console.error("Failed to toggle user block status:", await response.text())
       }
     } catch (error) {
       console.error("Error toggling user block status:", error)
@@ -157,11 +160,12 @@ export default function AdminPage() {
   const addCategory = async () => {
     if (newCategory.name.trim()) {
       try {
+        const telegramId = localStorage.getItem("telegram_id")
         const response = await fetch("/api/categories", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-telegram-id": localStorage.getItem("telegram_id") || "",
+            "x-telegram-id": telegramId || "",
           },
           body: JSON.stringify(newCategory),
         })
@@ -170,6 +174,8 @@ export default function AdminPage() {
           const category = await response.json()
           setCategories([...categories, category])
           setNewCategory({ name: "", color: "#3b82f6" })
+        } else {
+          console.error("Failed to add category:", await response.text())
         }
       } catch (error) {
         console.error("Error adding category:", error)
@@ -180,15 +186,18 @@ export default function AdminPage() {
   // Удаление категории
   const deleteCategory = async (categoryId: number) => {
     try {
+      const telegramId = localStorage.getItem("telegram_id")
       const response = await fetch(`/api/categories/${categoryId}`, {
         method: "DELETE",
         headers: {
-          "x-telegram-id": localStorage.getItem("telegram_id") || "",
+          "x-telegram-id": telegramId || "",
         },
       })
 
       if (response.ok) {
         setCategories(categories.filter((cat) => cat.id !== categoryId))
+      } else {
+        console.error("Failed to delete category:", await response.text())
       }
     } catch (error) {
       console.error("Error deleting category:", error)

@@ -12,7 +12,7 @@ import { Plus, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import SearchFilter from "@/components/search-filter"
 import Pagination from "@/components/pagination"
-import { getTelegramUser, getTelegramColorScheme, isTelegramWebApp } from "@/lib/telegram-webapp"
+import { getTelegramUser, getTelegramColorScheme, isTelegramWebApp, getTelegramInitData } from "@/lib/telegram-webapp"
 import type { AIModelWithDetails } from "@/lib/models/ai-model"
 import type { KnowledgeItemWithDetails } from "@/lib/models/knowledge-item"
 
@@ -56,6 +56,9 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isWebApp, setIsWebApp] = useState(false)
 
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showAdminPanel, setShowAdminPanel] = useState(false)
+
   // Получаем параметры из URL
   const page = Number.parseInt(searchParams.get("page") || "1")
   const search = searchParams.get("search") || undefined
@@ -96,32 +99,29 @@ export default function HomePage() {
   // Функция для авторизации пользователя на сервере
   const authenticateUser = async (telegramUser: any) => {
     try {
-      // Здесь должен быть запрос к API для авторизации пользователя
-      // В реальном приложении нужно отправить initData для проверки на сервере
-      console.log("Авторизация пользователя Telegram:", telegramUser)
+      const initData = getTelegramInitData()
 
-      // Пример запроса к API (закомментирован, так как API еще не реализовано)
-      /*
-      const response = await fetch('/api/auth/telegram', {
-        method: 'POST',
+      const response = await fetch("/api/auth/telegram", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          telegram_id: telegramUser.id,
-          first_name: telegramUser.first_name,
-          last_name: telegramUser.last_name,
-          username: telegramUser.username,
-          photo_url: telegramUser.photo_url,
+          initData,
+          user: telegramUser,
         }),
       })
 
       if (response.ok) {
         const data = await response.json()
-        // Сохраняем токен для последующих запросов
-        localStorage.setItem('token', data.token)
+        // Update user state with server response
+        setUser(data.user)
+        // Store token for subsequent requests
+        localStorage.setItem("telegram_id", telegramUser.id.toString())
+        localStorage.setItem("auth_token", data.token)
+      } else {
+        console.error("Authentication failed:", await response.text())
       }
-      */
     } catch (error) {
       console.error("Ошибка авторизации:", error)
     }
@@ -297,9 +297,22 @@ export default function HomePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => {
+              if (user?.is_admin) {
+                // Simple click for admin access
+                setShowAdminPanel(true)
+              }
+            }}
+          >
             <span className="text-2xl">💢</span>
             <h1 className="text-xl font-semibold">База нейросетей</h1>
+            {user?.is_admin && (
+              <Badge variant="secondary" className="text-xs ml-2">
+                Admin
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -343,13 +356,6 @@ export default function HomePage() {
                 📚 База знаний
               </TabsTrigger>
             </TabsList>
-
-            {user && (
-              <Button className="rounded-full">
-                <Plus className="w-4 h-4 mr-2" />
-                Добавить
-              </Button>
-            )}
           </div>
 
           <SearchFilter
@@ -399,6 +405,44 @@ export default function HomePage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Floating Add Button */}
+        {user && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <Button
+              size="icon"
+              className="w-14 h-14 rounded-full shadow-lg bg-primary/80 backdrop-blur-md border border-white/20 hover:bg-primary/90 transition-all duration-200"
+              onClick={() => setShowAddModal(true)}
+            >
+              <Plus className="w-6 h-6" />
+            </Button>
+          </div>
+        )}
+
+        {/* Admin Panel Access - Long press on logo */}
+        {user?.is_admin && showAdminPanel && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-md">
+              <CardContent className="p-6 text-center space-y-4">
+                <h3 className="text-lg font-semibold">Админ панель</h3>
+                <p className="text-sm text-muted-foreground">Вы хотите перейти в админ панель?</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowAdminPanel(false)}>
+                    Отмена
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      window.location.href = "/admin"
+                    }}
+                  >
+                    Перейти
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
 
       {/* Model Detail Modal */}
@@ -505,6 +549,39 @@ export default function HomePage() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Добавить запись</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Button
+              className="w-full justify-start"
+              variant="outline"
+              onClick={() => {
+                setShowAddModal(false)
+                // Navigate to add AI model form
+                console.log("Add AI Model")
+              }}
+            >
+              🤖 Добавить нейросеть
+            </Button>
+            <Button
+              className="w-full justify-start"
+              variant="outline"
+              onClick={() => {
+                setShowAddModal(false)
+                // Navigate to add knowledge item form
+                console.log("Add Knowledge Item")
+              }}
+            >
+              📚 Добавить в базу знаний
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

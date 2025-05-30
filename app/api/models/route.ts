@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
       ? Number.parseInt(searchParams.get("category") as string)
       : undefined
 
+    console.log("Fetching AI models with params:", { page, limit, search, categoryId })
+
     const { models, total } = await getAllAIModels(page, limit, search, categoryId)
+
+    console.log(`Found ${models.length} models out of ${total} total`)
 
     return NextResponse.json({
       models,
@@ -25,7 +29,13 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error fetching AI models:", error)
-    return NextResponse.json({ error: "Failed to fetch AI models" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to fetch AI models",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -34,9 +44,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Проверка авторизации
-    const telegramId = request.headers.get("x-telegram-id")
+    const telegramId = request.headers.get("x-telegram-id") || localStorage?.getItem("telegram_id")
     if (!telegramId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized: Telegram ID required" }, { status: 401 })
     }
 
     const user = await getUserByTelegramId(telegramId)
@@ -44,10 +54,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized or account blocked" }, { status: 401 })
     }
 
+    console.log("Creating AI model for user:", user.id)
+
     // Валидация данных
     const { name, description, category_id } = body
     if (!name || !description || !category_id) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json({ error: "Missing required fields: name, description, category_id" }, { status: 400 })
     }
 
     // Создание модели
@@ -56,9 +68,17 @@ export async function POST(request: NextRequest) {
       author_id: user.id,
     })
 
+    console.log("AI model created successfully:", model.id)
+
     return NextResponse.json(model, { status: 201 })
   } catch (error) {
     console.error("Error creating AI model:", error)
-    return NextResponse.json({ error: "Failed to create AI model" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to create AI model",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

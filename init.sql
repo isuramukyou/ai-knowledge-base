@@ -1,7 +1,7 @@
 -- Create database schema for AI Knowledge Base
 
 -- Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     telegram_id BIGINT UNIQUE NOT NULL,
     username VARCHAR(255),
@@ -15,7 +15,7 @@ CREATE TABLE users (
 );
 
 -- Categories table
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     color VARCHAR(7) DEFAULT '#3b82f6',
@@ -23,7 +23,7 @@ CREATE TABLE categories (
 );
 
 -- AI Models table
-CREATE TABLE ai_models (
+CREATE TABLE IF NOT EXISTS ai_models (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -38,7 +38,7 @@ CREATE TABLE ai_models (
 );
 
 -- Knowledge items table
-CREATE TABLE knowledge_items (
+CREATE TABLE IF NOT EXISTS knowledge_items (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -59,15 +59,18 @@ INSERT INTO categories (name, color) VALUES
 ('Дизайн', '#f59e0b'),
 ('Программирование', '#8b5cf6'),
 ('Обучение', '#ef4444'),
-('Аналитика', '#06b6d4');
+('Аналитика', '#06b6d4')
+ON CONFLICT DO NOTHING;
 
 -- Create indexes for better performance
-CREATE INDEX idx_users_telegram_id ON users(telegram_id);
-CREATE INDEX idx_ai_models_category ON ai_models(category_id);
-CREATE INDEX idx_ai_models_author ON ai_models(author_id);
-CREATE INDEX idx_knowledge_items_category ON knowledge_items(category_id);
-CREATE INDEX idx_knowledge_items_author ON knowledge_items(author_id);
-CREATE INDEX idx_knowledge_items_type ON knowledge_items(type);
+CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_ai_models_category ON ai_models(category_id);
+CREATE INDEX IF NOT EXISTS idx_ai_models_author ON ai_models(author_id);
+CREATE INDEX IF NOT EXISTS idx_ai_models_created_at ON ai_models(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_knowledge_items_category ON knowledge_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_items_author ON knowledge_items(author_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_items_type ON knowledge_items(type);
+CREATE INDEX IF NOT EXISTS idx_knowledge_items_created_at ON knowledge_items(created_at DESC);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -79,11 +82,29 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_ai_models_updated_at ON ai_models;
 CREATE TRIGGER update_ai_models_updated_at BEFORE UPDATE ON ai_models
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_knowledge_items_updated_at ON knowledge_items;
 CREATE TRIGGER update_knowledge_items_updated_at BEFORE UPDATE ON knowledge_items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Add some sample data for testing (optional)
+-- This will only run if the tables are empty
+DO $$
+BEGIN
+    -- Check if we have any users (excluding potential admin)
+    IF NOT EXISTS (SELECT 1 FROM users WHERE is_admin = false) THEN
+        -- Insert sample categories if they don't exist
+        INSERT INTO categories (name, color) VALUES
+        ('Тестовая категория', '#ff6b6b')
+        ON CONFLICT DO NOTHING;
+        
+        -- Note: Sample users and content will be created when users first interact with the app
+    END IF;
+END $$;
