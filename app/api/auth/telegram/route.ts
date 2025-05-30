@@ -2,61 +2,79 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createUser, getUserByTelegramId } from "@/lib/models/user"
 import { createHash, createHmac } from "crypto"
 
-// Функция для проверки данных авторизации Telegram
-function verifyTelegramAuth(data: any): boolean {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN
-  if (!botToken) {
-    throw new Error("TELEGRAM_BOT_TOKEN is not defined")
+// Функция для проверки данных авторизации Telegram WebApp
+function verifyTelegramWebAppData(initData: string): boolean {
+  try {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN
+    if (!botToken) {
+      throw new Error("TELEGRAM_BOT_TOKEN is not defined")
+    }
+
+    // Парсим initData
+    const params = new URLSearchParams(initData)
+    const hash = params.get("hash")
+    if (!hash) return false
+
+    // Удаляем hash из проверяемых данных
+    params.delete("hash")
+
+    // Сортируем параметры
+    const keys = Array.from(params.keys()).sort()
+    const dataCheckString = keys.map((key) => `${key}=${params.get(key)}`).join("\n")
+
+    // Создаем секретный ключ из токена бота
+    const secretKey = createHash("sha256").update(botToken).digest()
+
+    // Вычисляем HMAC
+    const calculatedHash = createHmac("sha256", secretKey).update(dataCheckString).digest("hex")
+
+    return calculatedHash === hash
+  } catch (error) {
+    console.error("Error verifying Telegram WebApp data:", error)
+    return false
   }
-
-  const secretKey = createHash("sha256").update(botToken).digest()
-
-  const dataCheckString = Object.keys(data)
-    .filter((key) => key !== "hash")
-    .sort()
-    .map((key) => `${key}=${data[key]}`)
-    .join("\n")
-
-  const hmac = createHmac("sha256", secretKey).update(dataCheckString).digest("hex")
-
-  return hmac === data.hash
 }
 
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
+    const { initData, user } = data
 
     // Проверка данных авторизации
-    if (!verifyTelegramAuth(data)) {
+    if (!verifyTelegramWebAppData(initData)) {
       return NextResponse.json({ error: "Invalid authentication data" }, { status: 401 })
     }
 
     // Проверка срока действия авторизации (не более 24 часов)
-    const authDate = Number.parseInt(data.auth_date) * 1000
+    const authDate = Number.parseInt(new URLSearchParams(initData).get("auth_date") || "0") * 1000
     const now = Date.now()
     if (now - authDate > 86400000) {
       // 24 часа в миллисекундах
       return NextResponse.json({ error: "Authentication data expired" }, { status: 401 })
     }
 
+    if (!user || !user.id) {
+      return NextResponse.json({ error: "User data is missing" }, { status: 400 })
+    }
+
     // Поиск пользователя или создание нового
-    let user = await getUserByTelegramId(data.id.toString())
+    let dbUser = await getUserByTelegramId(user.id.toString())
 
-    if (!user) {
+    if (!dbUser) {
       // Проверка, является ли пользователь администратором
-      const isAdmin = data.id.toString() === process.env.ADMIN_TELEGRAM_ID
+      const isAdmin = user.id.toString() === process.env.ADMIN_TELEGRAM_ID
 
-      user = await createUser({
-        telegram_id: data.id.toString(),
-        username: data.username || null,
-        first_name: data.first_name,
-        last_name: data.last_name || null,
-        avatar_url: data.photo_url || null,
+      dbUser = await createUser({
+        telegram_id: user.id.toString(),
+        username: user.username || null,
+        first_name: user.first_name,
+        last_name: user.last_name || null,
+        avatar_url: user.photo_url || null,
         is_admin: isAdmin,
       })
     }
 
-    if (user.is_blocked) {
+    if (dbUser.is_blocked) {
       return NextResponse.json({ error: "Your account has been blocked" }, { status: 403 })
     }
 
@@ -66,13 +84,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       user: {
-        id: user.id,
-        telegram_id: user.telegram_id,
-        username: user.username,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        avatar_url: user.avatar_url,
-        is_admin: user.is_admin,
+        id: dbUser.id,
+        telegram_id: dbUser.telegram_id,
+        username: dbUser.username,
+        first_name: dbUser.first_name,
+        last_name: dbUser.last_name,
+        avatar_url: dbUser.avatar_url,
+        is_admin: dbUser.is_admin,
       },
       token: "sample-jwt-token", // В реальном приложении здесь должен быть JWT
     })

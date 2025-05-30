@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Moon, Sun, User } from "lucide-react"
+import { Plus, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import SearchFilter from "@/components/search-filter"
 import Pagination from "@/components/pagination"
+import { getTelegramUser, getTelegramColorScheme, isTelegramWebApp } from "@/lib/telegram-webapp"
 import type { AIModelWithDetails } from "@/lib/models/ai-model"
 import type { KnowledgeItemWithDetails } from "@/lib/models/knowledge-item"
 
@@ -53,12 +54,78 @@ export default function HomePage() {
   })
   const [activeTab, setActiveTab] = useState("models")
   const [isLoading, setIsLoading] = useState(false)
+  const [isWebApp, setIsWebApp] = useState(false)
 
   // Получаем параметры из URL
   const page = Number.parseInt(searchParams.get("page") || "1")
   const search = searchParams.get("search") || undefined
   const category = searchParams.get("category") || undefined
   const type = searchParams.get("type") || undefined
+
+  // Инициализация Telegram WebApp и получение данных пользователя
+  useEffect(() => {
+    const isInTelegramWebApp = isTelegramWebApp()
+    setIsWebApp(isInTelegramWebApp)
+
+    if (isInTelegramWebApp) {
+      // Получаем данные пользователя из Telegram WebApp
+      const telegramUser = getTelegramUser()
+
+      if (telegramUser) {
+        // Преобразуем данные пользователя Telegram в формат нашего приложения
+        setUser({
+          telegram_id: telegramUser.id.toString(),
+          first_name: telegramUser.first_name,
+          last_name: telegramUser.last_name || null,
+          username: telegramUser.username || null,
+          avatar_url: telegramUser.photo_url || null,
+        })
+
+        // Отправляем данные на сервер для авторизации
+        authenticateUser(telegramUser)
+      }
+
+      // Устанавливаем тему в соответствии с темой Telegram
+      const colorScheme = getTelegramColorScheme()
+      if (colorScheme) {
+        setTheme(colorScheme)
+      }
+    }
+  }, [setTheme])
+
+  // Функция для авторизации пользователя на сервере
+  const authenticateUser = async (telegramUser: any) => {
+    try {
+      // Здесь должен быть запрос к API для авторизации пользователя
+      // В реальном приложении нужно отправить initData для проверки на сервере
+      console.log("Авторизация пользователя Telegram:", telegramUser)
+
+      // Пример запроса к API (закомментирован, так как API еще не реализовано)
+      /*
+      const response = await fetch('/api/auth/telegram', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegram_id: telegramUser.id,
+          first_name: telegramUser.first_name,
+          last_name: telegramUser.last_name,
+          username: telegramUser.username,
+          photo_url: telegramUser.photo_url,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Сохраняем токен для последующих запросов
+        localStorage.setItem('token', data.token)
+      }
+      */
+    } catch (error) {
+      console.error("Ошибка авторизации:", error)
+    }
+  }
 
   // Загрузка данных при изменении параметров
   useEffect(() => {
@@ -231,25 +298,26 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🧠</span>
-            <h1 className="text-xl font-semibold">AI Knowledge Base</h1>
+            <span className="text-2xl">💢</span>
+            <h1 className="text-xl font-semibold">База нейросетей</h1>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded-full"
-            >
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
+            {/* Показываем переключатель темы только если не в Telegram WebApp */}
+            {!isWebApp && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="rounded-full"
+              >
+                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </Button>
+            )}
 
-            {user ? (
+            {/* Показываем аватар пользователя, если он авторизован */}
+            {user && (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <User className="w-4 h-4" />
-                </Button>
                 <Avatar className="w-8 h-8">
                   <AvatarImage src={user.avatar_url || "/placeholder.svg"} />
                   <AvatarFallback>
@@ -258,11 +326,6 @@ export default function HomePage() {
                   </AvatarFallback>
                 </Avatar>
               </div>
-            ) : (
-              <Button variant="default" className="rounded-full">
-                <User className="w-4 h-4 mr-2" />
-                Войти через Telegram
-              </Button>
             )}
           </div>
         </div>
