@@ -76,6 +76,16 @@ export function getTelegramUser(): TelegramUser | null {
   if (typeof window !== "undefined" && window.Telegram?.WebApp?.initDataUnsafe?.user) {
     return window.Telegram.WebApp.initDataUnsafe.user
   }
+  // Мок-данные для разработки
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+    return {
+      id: 579218344,
+      username: "isuramukyou",
+      first_name: "Islam",
+      last_name: "Gasanov",
+      photo_url: "https://t.me/i/userpic/320/isuramukyou.jpg",
+    }
+  }
   return null
 }
 
@@ -96,6 +106,19 @@ export function isTelegramWebApp(): boolean {
 export function getTelegramInitData(): string | null {
   if (typeof window !== "undefined" && window.Telegram?.WebApp) {
     return window.Telegram.WebApp.initData
+  }
+  // Мок-данные для разработки
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+    // Сгенерируем тестовый hash (можно любой, так как сервер в dev не проверяет его)
+    return new URLSearchParams({
+      id: "579218344",
+      username: "isuramukyou",
+      first_name: "Islam",
+      last_name: "Gasanov",
+      photo_url: "https://t.me/i/userpic/320/isuramukyou.jpg",
+      auth_date: "1710000000",
+      hash: "testhash1234567890"
+    }).toString()
   }
   return null
 }

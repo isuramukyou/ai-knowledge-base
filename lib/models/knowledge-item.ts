@@ -57,7 +57,11 @@ export async function getAllKnowledgeItems(
   }
 
   try {
-    const countResult = await query(`SELECT COUNT(*) FROM knowledge_items k ${whereClause}`, params.slice(2))
+    let countParams: any[] = []
+    if (whereClause) {
+      countParams = params.slice(2)
+    }
+    const countResult = await query(`SELECT COUNT(*) FROM knowledge_items k ${whereClause}`, countParams)
     const total = Number.parseInt(countResult.rows[0].count)
 
     const result = await query(

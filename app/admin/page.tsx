@@ -119,12 +119,31 @@ export default function AdminPage() {
   const fetchStats = async () => {
     setIsLoading(true)
     try {
-      // В реальном приложении здесь будет запрос к API для получения статистики
-      // Для примера используем моковые данные
+      const telegramId = localStorage.getItem("telegram_id")
+      // Получаем количество моделей
+      const modelsRes = await fetch(`/api/models?page=1&limit=1`)
+      const modelsData = await modelsRes.json()
+      // Получаем количество записей в базе знаний
+      const knowledgeRes = await fetch(`/api/knowledge?page=1&limit=1`)
+      const knowledgeData = await knowledgeRes.json()
+      // Получаем пользователей (админский эндпоинт)
+      const usersRes = await fetch(`/api/admin/users?page=1&limit=1`, {
+        headers: { "x-telegram-id": telegramId || "" },
+      })
+      const usersData = await usersRes.json()
+      // Получаем всех пользователей и фильтруем активных (is_blocked === false)
+      // Для оптимизации можно сделать отдельный эндпоинт, но пока так:
+      const allUsersRes = await fetch(`/api/admin/users?page=1&limit=10000`, {
+        headers: { "x-telegram-id": telegramId || "" },
+      })
+      const allUsersData = await allUsersRes.json()
+      const activeUsers = Array.isArray(allUsersData.users)
+        ? allUsersData.users.filter((u: any) => !u.is_blocked).length
+        : 0
       setStats({
-        modelsCount: 12,
-        knowledgeCount: 8,
-        activeUsers: users.filter((u) => !u.is_blocked).length,
+        modelsCount: modelsData.pagination?.total || 0,
+        knowledgeCount: knowledgeData.pagination?.total || 0,
+        activeUsers,
       })
     } catch (error) {
       console.error("Error fetching stats:", error)
@@ -213,56 +232,56 @@ export default function AdminPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-semibold">Админ панель</h1>
+            <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+            <h1 className="text-lg sm:text-xl font-semibold">Админ панель</h1>
           </div>
 
-          <Button variant="outline" className="rounded-full">
-            <Settings className="w-4 h-4 mr-2" />
-            Настройки
+          <Button variant="outline" className="rounded-full px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base">
+            <Settings className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Настройки</span>
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="users" className="w-full" onValueChange={handleTabChange}>
-          <TabsList className="grid w-fit grid-cols-3 rounded-full mb-8">
-            <TabsTrigger value="users" className="rounded-full">
-              <Users className="w-4 h-4 mr-2" />
-              Пользователи
+          <TabsList className="grid w-fit grid-cols-3 rounded-full mb-4 sm:mb-8">
+            <TabsTrigger value="users" className="rounded-full text-sm sm:text-base px-2 sm:px-4 py-1.5">
+              <Users className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Пользователи</span>
             </TabsTrigger>
-            <TabsTrigger value="categories" className="rounded-full">
-              <Tags className="w-4 h-4 mr-2" />
-              Категории
+            <TabsTrigger value="categories" className="rounded-full text-sm sm:text-base px-2 sm:px-4 py-1.5">
+              <Tags className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Категории</span>
             </TabsTrigger>
-            <TabsTrigger value="content" className="rounded-full">
-              <FileText className="w-4 h-4 mr-2" />
-              Контент
+            <TabsTrigger value="content" className="rounded-full text-sm sm:text-base px-2 sm:px-4 py-1.5">
+              <FileText className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Контент</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
-          <TabsContent value="users" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Управление пользователями</h2>
+          <TabsContent value="users" className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+              <h2 className="text-xl sm:text-2xl font-semibold">Управление пользователями</h2>
               <Badge variant="secondary">{usersPagination.total} пользователей</Badge>
             </div>
 
             {isLoading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              <div className="flex justify-center py-8 sm:py-12">
+                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
               </div>
             ) : users.length > 0 ? (
-              <div className="grid gap-4">
+              <div className="grid gap-2 sm:gap-4">
                 {users.map((user) => (
                   <Card key={user.id} className="transition-all duration-200">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="w-12 h-12">
+                    <CardContent className="p-3 sm:p-6">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                        <div className="flex items-center gap-2 sm:gap-4">
+                          <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
                             <AvatarImage src={user.avatar_url || `https://t.me/i/userpic/320/${user.username}.jpg`} />
                             <AvatarFallback>
                               {user.first_name?.[0]}
@@ -271,23 +290,23 @@ export default function AdminPage() {
                           </Avatar>
 
                           <div className="space-y-1">
-                            <h3 className="font-semibold">
+                            <h3 className="font-semibold text-base sm:text-lg">
                               {user.first_name} {user.last_name}
                             </h3>
-                            <p className="text-sm text-muted-foreground">@{user.username}</p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">@{user.username}</p>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-4 text-xs text-muted-foreground">
                               <span>Регистрация: {new Date(user.created_at).toLocaleDateString()}</span>
                               <span>Записей: {user.posts_count || 0}</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
                           {user.is_blocked && <Badge variant="destructive">Заблокирован</Badge>}
                           {user.is_admin && <Badge variant="default">Администратор</Badge>}
 
-                          <div className="flex items-center gap-2">
-                            <Label htmlFor={`block-${user.id}`} className="text-sm">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Label htmlFor={`block-${user.id}`} className="text-xs sm:text-sm">
                               Заблокировать
                             </Label>
                             <Switch
@@ -310,30 +329,30 @@ export default function AdminPage() {
                 />
               </div>
             ) : (
-              <div className="text-center py-12">
+              <div className="text-center py-8 sm:py-12">
                 <p className="text-muted-foreground">Пользователи не найдены</p>
               </div>
             )}
           </TabsContent>
 
           {/* Categories Tab */}
-          <TabsContent value="categories" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Управление категориями</h2>
+          <TabsContent value="categories" className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+              <h2 className="text-xl sm:text-2xl font-semibold">Управление категориями</h2>
 
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button className="rounded-full">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Добавить категорию
+                  <Button className="rounded-full px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base">
+                    <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Добавить категорию</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Новая категория</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="space-y-1 sm:space-y-2">
                       <Label htmlFor="category-name">Название</Label>
                       <Input
                         id="category-name"
@@ -343,15 +362,15 @@ export default function AdminPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1 sm:space-y-2">
                       <Label htmlFor="category-color">Цвет</Label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col xs:flex-row items-start xs:items-center gap-2">
                         <Input
                           id="category-color"
                           type="color"
                           value={newCategory.color}
                           onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
-                          className="w-16 h-10"
+                          className="w-12 h-8 sm:w-16 sm:h-10"
                         />
                         <Input
                           value={newCategory.color}
@@ -370,18 +389,18 @@ export default function AdminPage() {
             </div>
 
             {isLoading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              <div className="flex justify-center py-8 sm:py-12">
+                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
               </div>
             ) : categories.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                 {categories.map((category) => (
                   <Card key={category.id} className="transition-all duration-200">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-2 sm:pb-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
-                          <CardTitle className="text-lg">{category.name}</CardTitle>
+                          <CardTitle className="text-base sm:text-lg">{category.name}</CardTitle>
                         </div>
                         <Button
                           variant="ghost"
@@ -394,7 +413,7 @@ export default function AdminPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         Создана: {new Date(category.created_at).toLocaleDateString()}
                       </p>
                     </CardContent>
@@ -402,46 +421,46 @@ export default function AdminPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
+              <div className="text-center py-8 sm:py-12">
                 <p className="text-muted-foreground">Категории не найдены</p>
               </div>
             )}
           </TabsContent>
 
           {/* Content Tab */}
-          <TabsContent value="content" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Управление контентом</h2>
+          <TabsContent value="content" className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+              <h2 className="text-xl sm:text-2xl font-semibold">Управление контентом</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">🤖 Нейросети</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">🤖 Нейросети</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-2">{stats.modelsCount}</div>
-                  <p className="text-sm text-muted-foreground">Всего записей</p>
+                  <div className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{stats.modelsCount}</div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Всего записей</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">📚 База знаний</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">📚 База знаний</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-2">{stats.knowledgeCount}</div>
-                  <p className="text-sm text-muted-foreground">Всего записей</p>
+                  <div className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{stats.knowledgeCount}</div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Всего записей</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">👥 Активные пользователи</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">👥 Активные пользователи</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold mb-2">{stats.activeUsers}</div>
-                  <p className="text-sm text-muted-foreground">Не заблокированы</p>
+                  <div className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{stats.activeUsers}</div>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Не заблокированы</p>
                 </CardContent>
               </Card>
             </div>

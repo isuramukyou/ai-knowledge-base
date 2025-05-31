@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Moon, Sun } from "lucide-react"
+import { Plus, Moon, Sun, ExternalLink, Edit, Trash2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import SearchFilter from "@/components/search-filter"
 import Pagination from "@/components/pagination"
@@ -33,6 +33,7 @@ interface PaginationData {
 export default function HomePage() {
   const { theme, setTheme } = useTheme()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   const [selectedModel, setSelectedModel] = useState<AIModelWithDetails | null>(null)
   const [selectedKnowledge, setSelectedKnowledge] = useState<KnowledgeItemWithDetails | null>(null)
@@ -58,6 +59,8 @@ export default function HomePage() {
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [pendingDeleteModel, setPendingDeleteModel] = useState(false)
+  const [pendingDeleteKnowledge, setPendingDeleteKnowledge] = useState(false)
 
   // Получаем параметры из URL
   const page = Number.parseInt(searchParams.get("page") || "1")
@@ -292,6 +295,24 @@ export default function HomePage() {
     </Card>
   )
 
+  // Вспомогательная функция для красивого отображения цены
+  function renderPricing(pricing: string | null) {
+    if (!pricing) return null
+    // Пример: 1000|₽|месяц
+    const [amount, currency, period] = pricing.split("|")
+    if (!amount || !currency || !period) return pricing
+    return `от ${amount} ${currency}/${period}`
+  }
+
+  // Вспомогательная функция для перехода на сайт
+  function openWebsite(url: string) {
+    let finalUrl = url
+    if (!/^https?:\/\//i.test(url)) {
+      finalUrl = "https://" + url
+    }
+    window.open(finalUrl, "_blank")
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -461,9 +482,9 @@ export default function HomePage() {
                     className="w-full aspect-video object-cover rounded-lg"
                   />
                 )}
-
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
+                  {/* Категория, цена и автор */}
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <Badge
                       variant="secondary"
                       style={{
@@ -473,6 +494,11 @@ export default function HomePage() {
                     >
                       {selectedModel.category_name}
                     </Badge>
+                    {selectedModel.pricing && (
+                      <span className="text-sm font-medium text-primary bg-primary/10 border border-primary/30 rounded px-2 py-0.5">
+                        {renderPricing(selectedModel.pricing)}
+                      </span>
+                    )}
                     <AuthorBadge
                       author={{
                         first_name: selectedModel.author_first_name,
@@ -482,32 +508,66 @@ export default function HomePage() {
                       }}
                     />
                   </div>
-
-                  <p className="text-muted-foreground">{selectedModel.full_description || selectedModel.description}</p>
-
+                  {/* Описание */}
+                  <p className="text-muted-foreground mt-2 whitespace-pre-line">
+                    {selectedModel.full_description || selectedModel.description}
+                  </p>
+                  {/* Кнопка сайта */}
                   {selectedModel.website_url && (
-                    <div>
-                      <h4 className="font-semibold mb-2">🌐 Веб-сайт</h4>
-                      <a
-                        href={selectedModel.website_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        {selectedModel.website_url}
-                      </a>
-                    </div>
+                    <Button
+                      size="lg"
+                      className="mt-4 w-full flex items-center justify-center gap-2 text-base font-semibold"
+                      onClick={() => openWebsite(selectedModel.website_url || "")}
+                    >
+                      <ExternalLink className="w-5 h-5" /> Перейти на сайт
+                    </Button>
                   )}
-
-                  {selectedModel.pricing && (
-                    <div>
-                      <h4 className="font-semibold mb-2">💰 Цены</h4>
-                      <p>{selectedModel.pricing}</p>
+                  {/* Кнопки редактирования/удаления */}
+                  {(user && (user.is_admin || user.telegram_id == selectedModel.author_username || user.telegram_id == selectedModel.author_id)) && (
+                    <div className="flex gap-2 mt-4">
+                      <Button variant="secondary" size="sm" onClick={() => router.push(`/models/${selectedModel.id}/edit`)}>
+                        <Edit className="w-4 h-4 mr-1" /> Редактировать
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => setPendingDeleteModel(true)}>
+                        <Trash2 className="w-4 h-4 mr-1" /> Удалить
+                      </Button>
                     </div>
                   )}
                 </div>
               </div>
             </>
+          )}
+          {/* Модалка подтверждения удаления модели */}
+          {pendingDeleteModel && (
+            <Dialog open={pendingDeleteModel} onOpenChange={setPendingDeleteModel}>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Удалить нейросеть?</DialogTitle>
+                </DialogHeader>
+                <p>Вы уверены, что хотите удалить эту нейросеть? Это действие необратимо.</p>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" onClick={() => setPendingDeleteModel(false)}>Отмена</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      if (!selectedModel) return;
+                      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null;
+                      const res = await fetch(`/api/models/${selectedModel.id}`, {
+                        method: "DELETE",
+                        headers: telegramId ? { "x-telegram-id": telegramId } : {},
+                      });
+                      setPendingDeleteModel(false);
+                      setSelectedModel(null);
+                      if (res.ok) {
+                        fetchAIModels();
+                      }
+                    }}
+                  >
+                    Удалить
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </DialogContent>
       </Dialog>
@@ -540,21 +600,63 @@ export default function HomePage() {
                     }}
                   />
                 </div>
-
                 {selectedKnowledge.content && (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
                     <div dangerouslySetInnerHTML={{ __html: selectedKnowledge.content.replace(/\n/g, "<br>") }} />
                   </div>
                 )}
+                {/* Кнопки редактирования/удаления */}
+                {(user && (user.is_admin || user.telegram_id == selectedKnowledge.author_username || user.telegram_id == selectedKnowledge.author_id)) && (
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="secondary" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
+                      <Edit className="w-4 h-4 mr-1" /> Редактировать
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => setPendingDeleteKnowledge(true)}>
+                      <Trash2 className="w-4 h-4 mr-1" /> Удалить
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
+          )}
+          {/* Модалка подтверждения удаления записи */}
+          {pendingDeleteKnowledge && (
+            <Dialog open={pendingDeleteKnowledge} onOpenChange={setPendingDeleteKnowledge}>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Удалить запись?</DialogTitle>
+                </DialogHeader>
+                <p>Вы уверены, что хотите удалить эту запись? Это действие необратимо.</p>
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" onClick={() => setPendingDeleteKnowledge(false)}>Отмена</Button>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      if (!selectedKnowledge) return;
+                      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null;
+                      const res = await fetch(`/api/knowledge/${selectedKnowledge.id}`, {
+                        method: "DELETE",
+                        headers: telegramId ? { "x-telegram-id": telegramId } : {},
+                      });
+                      setPendingDeleteKnowledge(false);
+                      setSelectedKnowledge(null);
+                      if (res.ok) {
+                        fetchKnowledgeItems();
+                      }
+                    }}
+                  >
+                    Удалить
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </DialogContent>
       </Dialog>
 
       {/* Add Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle>Добавить запись</DialogTitle>
           </DialogHeader>
@@ -564,8 +666,7 @@ export default function HomePage() {
               variant="outline"
               onClick={() => {
                 setShowAddModal(false)
-                // Navigate to add AI model form
-                console.log("Add AI Model")
+                router.push("/models/new")
               }}
             >
               🤖 Добавить нейросеть
@@ -575,8 +676,7 @@ export default function HomePage() {
               variant="outline"
               onClick={() => {
                 setShowAddModal(false)
-                // Navigate to add knowledge item form
-                console.log("Add Knowledge Item")
+                router.push("/knowledge/new")
               }}
             >
               📚 Добавить в базу знаний

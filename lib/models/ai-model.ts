@@ -51,7 +51,11 @@ export async function getAllAIModels(
   }
 
   try {
-    const countResult = await query(`SELECT COUNT(*) FROM ai_models m ${whereClause}`, params.slice(2))
+    let countParams: any[] = []
+    if (whereClause) {
+      countParams = params.slice(2)
+    }
+    const countResult = await query(`SELECT COUNT(*) FROM ai_models m ${whereClause}`, countParams)
     const total = Number.parseInt(countResult.rows[0].count)
 
     const result = await query(
@@ -139,10 +143,10 @@ export async function updateAIModel(id: number, updates: Partial<AIModel>, userI
 
     if (fields.length === 0) return null
 
-    const setClause = fields.map((field, i) => `${field} = $${i + 3}`).join(", ")
+    const setClause = fields.map((field, i) => `${field} = $${i + 2}`).join(", ")
     const values = fields.map((field) => updates[field as keyof AIModel])
 
-    const result = await query(`UPDATE ai_models SET ${setClause} WHERE id = $1 RETURNING *`, [id, userId, ...values])
+    const result = await query(`UPDATE ai_models SET ${setClause} WHERE id = $1 RETURNING *`, [id, ...values])
 
     return result.rows[0] || null
   } catch (error) {

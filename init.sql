@@ -52,15 +52,44 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default categories
-INSERT INTO categories (name, color) VALUES
-('Языковые модели', '#3b82f6'),
-('Генерация изображений', '#10b981'),
-('Дизайн', '#f59e0b'),
-('Программирование', '#8b5cf6'),
-('Обучение', '#ef4444'),
-('Аналитика', '#06b6d4')
-ON CONFLICT DO NOTHING;
+-- Currencies table
+CREATE TABLE IF NOT EXISTS currencies (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(8) NOT NULL,
+    name VARCHAR(32) NOT NULL,
+    code VARCHAR(8) NOT NULL
+);
+
+-- Insert default categories only if not exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Языковые модели') THEN
+    INSERT INTO categories (name, color) VALUES
+      ('Языковые модели', '#3b82f6'),
+      ('Генерация изображений', '#10b981'),
+      ('Дизайн', '#f59e0b'),
+      ('Программирование', '#8b5cf6'),
+      ('Обучение', '#ef4444'),
+      ('Аналитика', '#06b6d4');
+  END IF;
+END $$;
+
+-- Insert currencies only if not exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM currencies WHERE code = 'RUB') THEN
+    INSERT INTO currencies (symbol, name, code) VALUES
+      ('₽', 'Российский рубль', 'RUB');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM currencies WHERE code = 'USD') THEN
+    INSERT INTO currencies (symbol, name, code) VALUES
+      ('$', 'Доллар США', 'USD');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM currencies WHERE code = 'EUR') THEN
+    INSERT INTO currencies (symbol, name, code) VALUES
+      ('€', 'Евро', 'EUR');
+  END IF;
+END $$;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
