@@ -78,13 +78,68 @@ export function getTelegramUser(): TelegramUser | null {
   }
   // Мок-данные для разработки
   if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    return {
-      id: 579218344,
-      username: "isuramukyou",
-      first_name: "Islam",
-      last_name: "Gasanov",
-      photo_url: "https://t.me/i/userpic/320/isuramukyou.jpg",
+    // Создаем мок-объект Telegram WebApp
+    window.Telegram = {
+      WebApp: {
+        initData: "",
+        initDataUnsafe: {
+          user: {
+            id: 579218344,
+            username: "isuramukyou",
+            first_name: "Islam",
+            last_name: "Gasanov",
+            photo_url: "https://t.me/i/userpic/320/isuramukyou.jpg",
+          },
+          auth_date: 1710000000,
+          hash: "testhash1234567890"
+        },
+        colorScheme: "light",
+        viewportHeight: 800,
+        viewportStableHeight: 800,
+        isExpanded: true,
+        expand: () => {},
+        close: () => {},
+        ready: () => {},
+        MainButton: {
+          text: "",
+          color: "",
+          textColor: "",
+          isVisible: false,
+          isActive: false,
+          isProgressVisible: false,
+          show: () => {},
+          hide: () => {},
+          enable: () => {},
+          disable: () => {},
+          showProgress: () => {},
+          hideProgress: () => {},
+          onClick: () => {},
+          offClick: () => {},
+          setText: () => {},
+          setParams: () => {},
+        },
+        BackButton: {
+          isVisible: false,
+          show: () => {},
+          hide: () => {},
+          onClick: () => {},
+          offClick: () => {},
+        },
+        HapticFeedback: {
+          impactOccurred: () => {},
+          notificationOccurred: () => {},
+          selectionChanged: () => {},
+        },
+        onEvent: () => {},
+        offEvent: () => {},
+        sendData: () => {},
+        openLink: () => {},
+        openTelegramLink: () => {},
+        setHeaderColor: () => {},
+        setBackgroundColor: () => {},
+      }
     }
+    return window.Telegram.WebApp.initDataUnsafe.user || null
   }
   return null
 }

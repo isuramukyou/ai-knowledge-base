@@ -50,7 +50,17 @@ export async function getAllUsers(page = 1, limit = 10): Promise<{ users: User[]
   const countResult = await query("SELECT COUNT(*) FROM users")
   const total = Number.parseInt(countResult.rows[0].count)
 
-  const result = await query("SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2", [limit, offset])
+  const result = await query(`
+    SELECT u.*, 
+           COALESCE(
+             (SELECT COUNT(*) FROM ai_models WHERE author_id = u.id) +
+             (SELECT COUNT(*) FROM knowledge_items WHERE author_id = u.id),
+             0
+           ) as posts_count
+    FROM users u
+    ORDER BY u.created_at DESC 
+    LIMIT $1 OFFSET $2
+  `, [limit, offset])
 
   return { users: result.rows, total }
 }

@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Shield, Users, Tags, FileText, Settings } from "lucide-react"
+import { Plus, Users, Tags, FileText, Home, Pencil, Trash2 } from "lucide-react"
 import Pagination from "@/components/pagination"
+import { useRouter } from "next/navigation"
 
 interface User {
   id: number
@@ -32,51 +33,51 @@ interface Category {
   name: string
   color: string
   created_at: string
+  posts_count?: number
 }
 
 interface PaginationData {
   page: number
-  limit: number
   total: number
   totalPages: number
 }
 
+interface Stats {
+  modelsCount: number
+  knowledgeCount: number
+  activeUsers: number
+}
+
 export default function AdminPage() {
+  const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [newCategory, setNewCategory] = useState({ name: "", color: "#3b82f6" })
-  const [usersPagination, setUsersPagination] = useState<PaginationData>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  })
+  const [newCategory, setNewCategory] = useState({ name: "", color: "#000000" })
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [pagination, setPagination] = useState<PaginationData>({ page: 1, total: 0, totalPages: 0 })
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("users")
-  const [stats, setStats] = useState({
-    modelsCount: 0,
-    knowledgeCount: 0,
-    activeUsers: 0,
-  })
+  const [stats, setStats] = useState<Stats | null>(null)
 
   // Загрузка данных при монтировании компонента
   useEffect(() => {
     if (activeTab === "users") {
-      fetchUsers(1)
+      fetchUsers()
     } else if (activeTab === "categories") {
       fetchCategories()
-    } else if (activeTab === "content") {
+    } else if (activeTab === "stats") {
       fetchStats()
     }
   }, [activeTab])
 
   // Загрузка пользователей
-  const fetchUsers = async (page = 1) => {
+  const fetchUsers = async () => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
-      params.set("page", page.toString())
+      params.set("page", pagination.page.toString())
       params.set("limit", "10")
+      params.set("include_posts_count", "true")
 
       const telegramId = localStorage.getItem("telegram_id")
       const response = await fetch(`/api/admin/users?${params.toString()}`, {
@@ -88,7 +89,7 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json()
         setUsers(data.users)
-        setUsersPagination(data.pagination)
+        setPagination(data.pagination)
       } else {
         console.error("Failed to fetch users:", await response.text())
       }
@@ -192,13 +193,38 @@ export default function AdminPage() {
         if (response.ok) {
           const category = await response.json()
           setCategories([...categories, category])
-          setNewCategory({ name: "", color: "#3b82f6" })
+          setNewCategory({ name: "", color: "#000000" })
         } else {
           console.error("Failed to add category:", await response.text())
         }
       } catch (error) {
         console.error("Error adding category:", error)
       }
+    }
+  }
+
+  // Редактирование категории
+  const updateCategory = async (id: number, name: string, color: string) => {
+    try {
+      const telegramId = localStorage.getItem("telegram_id")
+      const response = await fetch(`/api/categories/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-telegram-id": telegramId || "",
+        },
+        body: JSON.stringify({ name, color }),
+      })
+
+      if (response.ok) {
+        const updatedCategory = await response.json()
+        setCategories(categories.map((cat) => (cat.id === id ? updatedCategory : cat)))
+        setEditingCategory(null)
+      } else {
+        console.error("Failed to update category:", await response.text())
+      }
+    } catch (error) {
+      console.error("Error updating category:", error)
     }
   }
 
@@ -216,7 +242,10 @@ export default function AdminPage() {
       if (response.ok) {
         setCategories(categories.filter((cat) => cat.id !== categoryId))
       } else {
-        console.error("Failed to delete category:", await response.text())
+        const error = await response.text()
+        console.error("Failed to delete category:", error)
+        // Показываем ошибку пользователю
+        alert(error)
       }
     } catch (error) {
       console.error("Error deleting category:", error)
@@ -226,6 +255,13 @@ export default function AdminPage() {
   // Обработчик смены вкладки
   const handleTabChange = (value: string) => {
     setActiveTab(value)
+    if (value === "users") {
+      fetchUsers()
+    } else if (value === "categories") {
+      fetchCategories()
+    } else if (value === "stats") {
+      fetchStats()
+    }
   }
 
   return (
@@ -234,54 +270,60 @@ export default function AdminPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+            <span className="text-2xl">🧩</span>
             <h1 className="text-lg sm:text-xl font-semibold">Админ панель</h1>
           </div>
 
-          <Button variant="outline" className="rounded-full px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base">
-            <Settings className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Настройки</span>
+          <Button 
+            variant="outline" 
+            className="rounded-full px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base"
+            onClick={() => router.push("/")}
+          >
+            <Home className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">На главную</span>
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+      <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="users" className="w-full" onValueChange={handleTabChange}>
-          <TabsList className="grid w-fit grid-cols-3 rounded-full mb-4 sm:mb-8">
-            <TabsTrigger value="users" className="rounded-full text-sm sm:text-base px-2 sm:px-4 py-1.5">
-              <Users className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Пользователи</span>
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="rounded-full text-sm sm:text-base px-2 sm:px-4 py-1.5">
-              <Tags className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Категории</span>
-            </TabsTrigger>
-            <TabsTrigger value="content" className="rounded-full text-sm sm:text-base px-2 sm:px-4 py-1.5">
-              <FileText className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden xs:inline">Контент</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-center mb-8">
+            <TabsList className="grid w-fit grid-cols-3 rounded-full">
+              <TabsTrigger value="users" className="rounded-full">
+                <Users className="w-4 h-4 mr-2" />
+                Users
+              </TabsTrigger>
+              <TabsTrigger value="categories" className="rounded-full">
+                <Tags className="w-4 h-4 mr-2" />
+                Data
+              </TabsTrigger>
+              <TabsTrigger value="stats" className="rounded-full">
+                <FileText className="w-4 h-4 mr-2" />
+                Stats
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Users Tab */}
-          <TabsContent value="users" className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-              <h2 className="text-xl sm:text-2xl font-semibold">Управление пользователями</h2>
-              <Badge variant="secondary">{usersPagination.total} пользователей</Badge>
+          <TabsContent value="users" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">Управление пользователями</h2>
+              <Badge variant="secondary" className="whitespace-nowrap">{pagination.total} пользователей</Badge>
             </div>
 
             {isLoading ? (
-              <div className="flex justify-center py-8 sm:py-12">
-                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
               </div>
             ) : users.length > 0 ? (
-              <div className="grid gap-2 sm:gap-4">
+              <div className="grid gap-6">
                 {users.map((user) => (
                   <Card key={user.id} className="transition-all duration-200">
-                    <CardContent className="p-3 sm:p-6">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-                        <div className="flex items-center gap-2 sm:gap-4">
-                          <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="w-12 h-12">
                             <AvatarImage src={user.avatar_url || `https://t.me/i/userpic/320/${user.username}.jpg`} />
                             <AvatarFallback>
                               {user.first_name?.[0]}
@@ -290,23 +332,25 @@ export default function AdminPage() {
                           </Avatar>
 
                           <div className="space-y-1">
-                            <h3 className="font-semibold text-base sm:text-lg">
+                            <h3 className="font-semibold text-lg">
                               {user.first_name} {user.last_name}
                             </h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground">@{user.username}</p>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-4 text-xs text-muted-foreground">
+                            <p className="text-sm text-muted-foreground">@{user.username}</p>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
                               <span>Регистрация: {new Date(user.created_at).toLocaleDateString()}</span>
                               <span>Записей: {user.posts_count || 0}</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-2 sm:mt-0">
-                          {user.is_blocked && <Badge variant="destructive">Заблокирован</Badge>}
-                          {user.is_admin && <Badge variant="default">Администратор</Badge>}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            {user.is_blocked && <Badge variant="destructive">Заблокирован</Badge>}
+                            {user.is_admin && <Badge variant="default">Администратор</Badge>}
+                          </div>
 
-                          <div className="flex items-center gap-1 sm:gap-2">
-                            <Label htmlFor={`block-${user.id}`} className="text-xs sm:text-sm">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`block-${user.id}`} className="text-sm">
                               Заблокировать
                             </Label>
                             <Switch
@@ -323,65 +367,55 @@ export default function AdminPage() {
                 ))}
 
                 <Pagination
-                  currentPage={usersPagination.page}
-                  totalPages={usersPagination.totalPages}
-                  onPageChange={(page) => fetchUsers(page)}
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  onPageChange={(page) => fetchUsers()}
                 />
               </div>
             ) : (
-              <div className="text-center py-8 sm:py-12">
+              <div className="text-center py-12">
                 <p className="text-muted-foreground">Пользователи не найдены</p>
               </div>
             )}
           </TabsContent>
 
           {/* Categories Tab */}
-          <TabsContent value="categories" className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-              <h2 className="text-xl sm:text-2xl font-semibold">Управление категориями</h2>
+          <TabsContent value="categories" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">Управление данными</h2>
 
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button className="rounded-full px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base">
-                    <Plus className="w-4 h-4 mr-1 sm:mr-2" />
-                    <span className="hidden xs:inline">Добавить категорию</span>
+                  <Button className="rounded-full">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Добавить категорию
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Новая категория</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label htmlFor="category-name">Название</Label>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Название</Label>
                       <Input
-                        id="category-name"
+                        id="name"
                         value={newCategory.name}
                         onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
                         placeholder="Введите название категории"
                       />
                     </div>
-
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label htmlFor="category-color">Цвет</Label>
-                      <div className="flex flex-col xs:flex-row items-start xs:items-center gap-2">
-                        <Input
-                          id="category-color"
-                          type="color"
-                          value={newCategory.color}
-                          onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
-                          className="w-12 h-8 sm:w-16 sm:h-10"
-                        />
-                        <Input
-                          value={newCategory.color}
-                          onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
-                          placeholder="#3b82f6"
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="color">Цвет</Label>
+                      <Input
+                        id="color"
+                        type="color"
+                        value={newCategory.color}
+                        onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
+                      />
                     </div>
-
                     <Button onClick={addCategory} className="w-full">
-                      Создать категорию
+                      Добавить
                     </Button>
                   </div>
                 </DialogContent>
@@ -389,78 +423,131 @@ export default function AdminPage() {
             </div>
 
             {isLoading ? (
-              <div className="flex justify-center py-8 sm:py-12">
-                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary"></div>
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
               </div>
             ) : categories.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {categories.map((category) => (
                   <Card key={category.id} className="transition-all duration-200">
-                    <CardHeader className="pb-2 sm:pb-3">
+                    <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
-                          <CardTitle className="text-base sm:text-lg">{category.name}</CardTitle>
+                          <CardTitle className="text-lg">{category.name}</CardTitle>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteCategory(category.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          Удалить
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingCategory(category)}
+                            className="text-primary hover:text-primary"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteCategory(category.id)}
+                            className="text-destructive hover:text-destructive"
+                            disabled={(category.posts_count ?? 0) > 0}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        Создана: {new Date(category.created_at).toLocaleDateString()}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Создана: {new Date(category.created_at).toLocaleDateString()}
+                        </p>
+                        <Badge variant="secondary">
+                          {category.posts_count} {category.posts_count === 1 ? "запись" : "записей"}
+                        </Badge>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 sm:py-12">
+              <div className="text-center py-12">
                 <p className="text-muted-foreground">Категории не найдены</p>
               </div>
             )}
+
+            {/* Диалог редактирования категории */}
+            <Dialog open={!!editingCategory} onOpenChange={() => setEditingCategory(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Редактировать категорию</DialogTitle>
+                </DialogHeader>
+                {editingCategory && (
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-name">Название</Label>
+                      <Input
+                        id="edit-name"
+                        value={editingCategory.name}
+                        onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                        placeholder="Введите название категории"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-color">Цвет</Label>
+                      <Input
+                        id="edit-color"
+                        type="color"
+                        value={editingCategory.color}
+                        onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
+                      />
+                    </div>
+                    <Button
+                      onClick={() => updateCategory(editingCategory.id, editingCategory.name, editingCategory.color)}
+                      className="w-full"
+                    >
+                      Сохранить
+                    </Button>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
-          {/* Content Tab */}
-          <TabsContent value="content" className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
-              <h2 className="text-xl sm:text-2xl font-semibold">Управление контентом</h2>
+          {/* Stats Tab */}
+          <TabsContent value="stats" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">Статистика</h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">🤖 Нейросети</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-lg">🤖 Нейросети</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{stats.modelsCount}</div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Всего записей</p>
+                  <div className="text-3xl font-bold mb-2">{stats?.modelsCount}</div>
+                  <p className="text-sm text-muted-foreground">Всего записей</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">📚 База знаний</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-lg">📚 База знаний</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{stats.knowledgeCount}</div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Всего записей</p>
+                  <div className="text-3xl font-bold mb-2">{stats?.knowledgeCount}</div>
+                  <p className="text-sm text-muted-foreground">Всего записей</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">👥 Активные пользователи</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-lg">👥 Активные пользователи</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">{stats.activeUsers}</div>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Не заблокированы</p>
+                  <div className="text-3xl font-bold mb-2">{stats?.activeUsers}</div>
+                  <p className="text-sm text-muted-foreground">Не заблокированы</p>
                 </CardContent>
               </Card>
             </div>
