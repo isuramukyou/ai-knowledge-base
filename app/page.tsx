@@ -224,6 +224,9 @@ export default function HomePage() {
         <div className="p-4 space-y-3">
           <div className="space-y-2">
             <h3 className="font-semibold text-lg leading-tight">{model.name}</h3>
+          </div>
+          <p className="text-sm text-muted-foreground line-clamp-3">{model.description}</p>
+          <div className="flex items-center justify-between">
             <Badge
               variant="secondary"
               className="text-xs"
@@ -231,16 +234,15 @@ export default function HomePage() {
             >
               {model.category_name}
             </Badge>
+            <AuthorBadge
+              author={{
+                first_name: model.author_first_name,
+                last_name: model.author_last_name,
+                username: model.author_username,
+                avatar_url: model.author_avatar_url,
+              }}
+            />
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-3">{model.description}</p>
-          <AuthorBadge
-            author={{
-              first_name: model.author_first_name,
-              last_name: model.author_last_name,
-              username: model.author_username,
-              avatar_url: model.author_avatar_url,
-            }}
-          />
         </div>
       </CardContent>
     </Card>
@@ -273,6 +275,9 @@ export default function HomePage() {
               <h3 className="font-semibold text-lg leading-tight flex-1">{item.title}</h3>
               <span className="text-lg">{item.type === "article" ? "📄" : item.type === "video" ? "🎥" : "🔗"}</span>
             </div>
+          </div>
+          <p className="text-sm text-muted-foreground line-clamp-3">{item.description}</p>
+          <div className="flex items-center justify-between">
             <Badge
               variant="secondary"
               className="text-xs"
@@ -280,16 +285,15 @@ export default function HomePage() {
             >
               {item.category_name}
             </Badge>
+            <AuthorBadge
+              author={{
+                first_name: item.author_first_name,
+                last_name: item.author_last_name,
+                username: item.author_username,
+                avatar_url: item.author_avatar_url,
+              }}
+            />
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-3">{item.description}</p>
-          <AuthorBadge
-            author={{
-              first_name: item.author_first_name,
-              last_name: item.author_last_name,
-              username: item.author_username,
-              avatar_url: item.author_avatar_url,
-            }}
-          />
         </div>
       </CardContent>
     </Card>
@@ -468,72 +472,74 @@ export default function HomePage() {
 
       {/* Model Detail Modal */}
       <Dialog open={!!selectedModel} onOpenChange={() => setSelectedModel(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
           {selectedModel && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl">{selectedModel.name}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {selectedModel.cover_url && (
                   <img
                     src={selectedModel.cover_url || "/placeholder.svg"}
                     alt={selectedModel.name}
-                    className="w-full aspect-video object-cover rounded-lg"
+                    className="w-full aspect-video object-cover rounded-xl"
                   />
                 )}
-                <div className="space-y-4">
-                  {/* Категория, цена и автор */}
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <Badge
-                      variant="secondary"
-                      style={{
-                        backgroundColor: selectedModel.category_color + "20",
-                        color: selectedModel.category_color,
-                      }}
-                    >
-                      {selectedModel.category_name}
-                    </Badge>
-                    {selectedModel.pricing && (
-                      <span className="text-sm font-medium text-primary bg-primary/10 border border-primary/30 rounded px-2 py-0.5">
-                        {renderPricing(selectedModel.pricing)}
-                      </span>
-                    )}
-                    <AuthorBadge
-                      author={{
-                        first_name: selectedModel.author_first_name,
-                        last_name: selectedModel.author_last_name,
-                        username: selectedModel.author_username,
-                        avatar_url: selectedModel.author_avatar_url,
-                      }}
-                    />
-                  </div>
-                  {/* Описание */}
-                  <p className="text-muted-foreground mt-2 whitespace-pre-line">
-                    {selectedModel.full_description || selectedModel.description}
-                  </p>
-                  {/* Кнопка сайта */}
-                  {selectedModel.website_url && (
-                    <Button
-                      size="lg"
-                      className="mt-4 w-full flex items-center justify-center gap-2 text-base font-semibold"
-                      onClick={() => openWebsite(selectedModel.website_url || "")}
-                    >
-                      <ExternalLink className="w-5 h-5" /> Перейти на сайт
-                    </Button>
-                  )}
-                  {/* Кнопки редактирования/удаления */}
-                  {(user && (user.is_admin || user.telegram_id == selectedModel.author_username || user.telegram_id == selectedModel.author_id)) && (
-                    <div className="flex gap-2 mt-4">
-                      <Button variant="secondary" size="sm" onClick={() => router.push(`/models/${selectedModel.id}/edit`)}>
-                        <Edit className="w-4 h-4 mr-1" /> Редактировать
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => setPendingDeleteModel(true)}>
-                        <Trash2 className="w-4 h-4 mr-1" /> Удалить
-                      </Button>
-                    </div>
-                  )}
+                {/* Автор и Категория */}
+                <div className="flex items-center justify-between mb-2">
+                  <Badge
+                    variant="secondary"
+                    style={{
+                      backgroundColor: selectedModel.category_color + "20",
+                      color: selectedModel.category_color,
+                    }}
+                    className="rounded-lg"
+                  >
+                    {selectedModel.category_name}
+                  </Badge>
+                  <AuthorBadge
+                    author={{
+                      first_name: selectedModel.author_first_name,
+                      last_name: selectedModel.author_last_name,
+                      username: selectedModel.author_username,
+                      avatar_url: selectedModel.author_avatar_url,
+                    }}
+                  />
                 </div>
+                {/* Цена */}
+                {selectedModel.pricing && (
+                  <div className="flex justify-start mb-2">
+                    <span className="text-sm font-medium text-primary">
+                      {renderPricing(selectedModel.pricing)}
+                    </span>
+                  </div>
+                )}
+                {/* Описание */}
+                <p className="text-muted-foreground mt-2 whitespace-pre-line">
+                  {selectedModel.full_description || selectedModel.description}
+                </p>
+                {/* Кнопка сайта */}
+                {selectedModel.website_url && (
+                  <Button
+                    size="lg"
+                    className="mt-4 w-full flex items-center justify-center gap-2 text-base font-semibold"
+                    onClick={() => openWebsite(selectedModel.website_url || "")}
+                  >
+                    <ExternalLink className="w-5 h-5" /> Перейти на сайт
+                  </Button>
+                )}
+                {/* Кнопки редактирования/удаления */}
+                {(user && (user.is_admin || user.telegram_id == selectedModel.author_username || user.telegram_id == selectedModel.author_id)) && (
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="secondary" size="sm" onClick={() => router.push(`/models/${selectedModel.id}/edit`)}>
+                      <Edit className="w-4 h-4 mr-1" /> Редактировать
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => setPendingDeleteModel(true)}>
+                      <Trash2 className="w-4 h-4 mr-1" /> Удалить
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -574,48 +580,64 @@ export default function HomePage() {
 
       {/* Knowledge Detail Modal */}
       <Dialog open={!!selectedKnowledge} onOpenChange={() => setSelectedKnowledge(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
           {selectedKnowledge && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl">{selectedKnowledge.title}</DialogTitle>
               </DialogHeader>
+              {/* Описание */}
+              {selectedKnowledge.description && (
+                <p className="text-muted-foreground text-sm mt-2">{selectedKnowledge.description}</p>
+              )}
               <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                  <Badge
-                    variant="secondary"
-                    style={{
-                      backgroundColor: selectedKnowledge.category_color + "20",
-                      color: selectedKnowledge.category_color,
-                    }}
-                  >
-                    {selectedKnowledge.category_name}
-                  </Badge>
-                  <AuthorBadge
-                    author={{
-                      first_name: selectedKnowledge.author_first_name,
-                      last_name: selectedKnowledge.author_last_name,
-                      username: selectedKnowledge.author_username,
-                      avatar_url: selectedKnowledge.author_avatar_url,
-                    }}
+                {selectedKnowledge.cover_url && (
+                  <img
+                    src={selectedKnowledge.cover_url || "/placeholder.svg"}
+                    alt={selectedKnowledge.title}
+                    className="w-full aspect-video object-cover rounded-xl"
                   />
+                )}
+                <div className="space-y-4">
+                  {/* Автор и Категория */}
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge
+                      variant="secondary"
+                      style={{
+                        backgroundColor: selectedKnowledge.category_color + "20",
+                        color: selectedKnowledge.category_color,
+                      }}
+                      className="rounded-lg"
+                    >
+                      {selectedKnowledge.category_name}
+                    </Badge>
+                    <AuthorBadge
+                      author={{
+                        first_name: selectedKnowledge.author_first_name,
+                        last_name: selectedKnowledge.author_last_name,
+                        username: selectedKnowledge.author_username,
+                        avatar_url: selectedKnowledge.author_avatar_url,
+                      }}
+                    />
+                  </div>
+                  {/* Содержание */}
+                  {selectedKnowledge.content && (
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <div dangerouslySetInnerHTML={{ __html: selectedKnowledge.content.replace(/\n/g, "<br>") }} />
+                    </div>
+                  )}
+                  {/* Кнопки редактирования/удаления */}
+                  {(user && (user.is_admin || user.telegram_id == selectedKnowledge.author_username || user.telegram_id == selectedKnowledge.author_id)) && (
+                    <div className="flex gap-2 mt-4">
+                      <Button variant="secondary" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
+                        <Edit className="w-4 h-4 mr-1" /> Редактировать
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => setPendingDeleteKnowledge(true)}>
+                        <Trash2 className="w-4 h-4 mr-1" /> Удалить
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                {selectedKnowledge.content && (
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <div dangerouslySetInnerHTML={{ __html: selectedKnowledge.content.replace(/\n/g, "<br>") }} />
-                  </div>
-                )}
-                {/* Кнопки редактирования/удаления */}
-                {(user && (user.is_admin || user.telegram_id == selectedKnowledge.author_username || user.telegram_id == selectedKnowledge.author_id)) && (
-                  <div className="flex gap-2 mt-4">
-                    <Button variant="secondary" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
-                      <Edit className="w-4 h-4 mr-1" /> Редактировать
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => setPendingDeleteKnowledge(true)}>
-                      <Trash2 className="w-4 h-4 mr-1" /> Удалить
-                    </Button>
-                  </div>
-                )}
               </div>
             </>
           )}
@@ -656,13 +678,13 @@ export default function HomePage() {
 
       {/* Add Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="max-w-md rounded-xl">
+        <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Добавить запись</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Button
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl"
               variant="outline"
               onClick={() => {
                 setShowAddModal(false)
@@ -672,7 +694,7 @@ export default function HomePage() {
               🤖 Добавить нейросеть
             </Button>
             <Button
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl"
               variant="outline"
               onClick={() => {
                 setShowAddModal(false)

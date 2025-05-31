@@ -31,14 +31,19 @@ export async function getAllAIModels(
 ): Promise<{ models: AIModelWithDetails[]; total: number }> {
   const offset = (page - 1) * limit
   let whereClause = ""
-  const params: any[] = [limit, offset]
+  const params: any[] = []
 
   if (search || categoryId) {
     whereClause = "WHERE "
     const conditions = []
 
     if (search) {
-      conditions.push(`(m.name ILIKE $${params.length + 1} OR m.description ILIKE $${params.length + 1})`)
+      conditions.push(`
+        (m.search_vector @@ websearch_to_tsquery('russian', $1)
+        OR m.name ILIKE $2
+        OR m.description ILIKE $2)
+      `)
+      params.push(search)
       params.push(`%${search}%`)
     }
 
@@ -51,11 +56,7 @@ export async function getAllAIModels(
   }
 
   try {
-    let countParams: any[] = []
-    if (whereClause) {
-      countParams = params.slice(2)
-    }
-    const countResult = await query(`SELECT COUNT(*) FROM ai_models m ${whereClause}`, countParams)
+    const countResult = await query(`SELECT COUNT(*) FROM ai_models m ${whereClause}`, params)
     const total = Number.parseInt(countResult.rows[0].count)
 
     const result = await query(
@@ -65,14 +66,21 @@ export async function getAllAIModels(
               u.first_name as author_first_name,
               u.last_name as author_last_name,
               u.username as author_username,
-              u.avatar_url as author_avatar_url
+              u.avatar_url as author_avatar_url,
+              ${search ? `
+              CASE 
+                WHEN m.search_vector @@ websearch_to_tsquery('russian', $1) 
+                THEN ts_rank(m.search_vector, websearch_to_tsquery('russian', $1))
+                ELSE 0 
+              END as search_rank
+              ` : '0 as search_rank'}
        FROM ai_models m
        JOIN categories c ON m.category_id = c.id
        JOIN users u ON m.author_id = u.id
        ${whereClause}
-       ORDER BY m.created_at DESC
-       LIMIT $1 OFFSET $2`,
-      params,
+       ORDER BY search_rank DESC NULLS LAST, m.created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset],
     )
 
     return { models: result.rows, total }

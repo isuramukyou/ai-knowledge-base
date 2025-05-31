@@ -33,6 +33,11 @@ CREATE TABLE IF NOT EXISTS ai_models (
     pricing TEXT,
     category_id INTEGER REFERENCES categories(id),
     author_id INTEGER REFERENCES users(id),
+    search_vector tsvector GENERATED ALWAYS AS (
+        setweight(to_tsvector('russian', coalesce(name, '')), 'A') ||
+        setweight(to_tsvector('russian', coalesce(description, '')), 'B') ||
+        setweight(to_tsvector('russian', coalesce(full_description, '')), 'C')
+    ) STORED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -48,6 +53,11 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
     cover_url TEXT,
     category_id INTEGER REFERENCES categories(id),
     author_id INTEGER REFERENCES users(id),
+    search_vector tsvector GENERATED ALWAYS AS (
+        setweight(to_tsvector('russian', coalesce(title, '')), 'A') ||
+        setweight(to_tsvector('russian', coalesce(description, '')), 'B') ||
+        setweight(to_tsvector('russian', coalesce(content, '')), 'C')
+    ) STORED,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -100,6 +110,10 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_items_category ON knowledge_items(categ
 CREATE INDEX IF NOT EXISTS idx_knowledge_items_author ON knowledge_items(author_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_items_type ON knowledge_items(type);
 CREATE INDEX IF NOT EXISTS idx_knowledge_items_created_at ON knowledge_items(created_at DESC);
+
+-- Create full-text search indexes
+CREATE INDEX IF NOT EXISTS idx_ai_models_search ON ai_models USING GIN (search_vector);
+CREATE INDEX IF NOT EXISTS idx_knowledge_items_search ON knowledge_items USING GIN (search_vector);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

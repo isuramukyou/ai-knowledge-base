@@ -1,32 +1,53 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, X } from "lucide-react"
 import type { Category } from "@/lib/models/category"
+import { useDebounce } from "@/hooks/use-debounce"
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
+import { Label } from "@/components/ui/label"
+import { CategorySelect } from "@/components/category-select"
+import { TypeSelect } from "@/components/type-select"
+import { cn } from "@/lib/utils"
+import { Filter } from "lucide-react"
 
 interface SearchFilterProps {
   placeholder?: string
   showTypeFilter?: boolean
   onSearch?: (params: { search?: string; category?: string; type?: string }) => void
+  onCategoryChange?: (categoryId: number | null) => void
+  onTypeChange?: (type: string | null) => void
+  onReset?: () => void
 }
 
 export default function SearchFilter({
   placeholder = "Поиск...",
   showTypeFilter = false,
   onSearch,
+  onCategoryChange,
+  onTypeChange,
+  onReset,
 }: SearchFilterProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [search, setSearch] = useState(searchParams.get("search") || "")
-  const [category, setCategory] = useState(searchParams.get("category") || "all")
-  const [type, setType] = useState(searchParams.get("type") || "all")
+  // Инициализируем состояния из URL параметров
+  const initialSearch = searchParams.get("search") || ""
+  const initialCategory = searchParams.get("category") || "all"
+  const initialType = searchParams.get("type") || "all"
+
+  const [search, setSearch] = useState(initialSearch)
+  const [category, setCategory] = useState(initialCategory)
+  const [type, setType] = useState(initialType)
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+
+  const debouncedSearch = useDebounce(search, 300)
 
   // Загрузка категорий
   useEffect(() => {
@@ -45,11 +66,11 @@ export default function SearchFilter({
     fetchCategories()
   }, [])
 
-  const handleSearch = () => {
+  const updateSearch = useCallback(() => {
     setIsLoading(true)
 
     const params = new URLSearchParams()
-    if (search) params.set("search", search)
+    if (debouncedSearch) params.set("search", debouncedSearch)
     if (category !== "all") params.set("category", category)
     if (type !== "all" && showTypeFilter) params.set("type", type)
 
@@ -58,7 +79,7 @@ export default function SearchFilter({
 
     if (onSearch) {
       onSearch({
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         category: category !== "all" ? category : undefined,
         type: type !== "all" ? type : undefined,
       })
@@ -67,9 +88,25 @@ export default function SearchFilter({
       // Обновляем URL с параметрами поиска
       router.push(`?${params.toString()}`)
     }
+  }, [debouncedSearch, category, type, showTypeFilter, onSearch, router])
+
+  // Эффект для автоматического поиска при изменении debouncedSearch
+  useEffect(() => {
+    updateSearch()
+  }, [debouncedSearch, updateSearch])
+
+  const handleCategoryChange = (categoryId: number | null) => {
+    setCategory(categoryId?.toString() || "all")
+    onCategoryChange?.(categoryId)
+  }
+
+  const handleTypeChange = (type: string | null) => {
+    setType(type || "all")
+    onTypeChange?.(type)
   }
 
   const handleReset = () => {
+    console.log("Resetting filters")
     setSearch("")
     setCategory("all")
     setType("all")
@@ -81,69 +118,72 @@ export default function SearchFilter({
     }
   }
 
+  // Проверяем, есть ли активные фильтры
+  const hasActiveFilters = Boolean(
+    search.trim() || // есть текст поиска (игнорируем пробелы)
+    (category && category !== "all") || // выбрана категория
+    (showTypeFilter && type && type !== "all") // выбран тип (только если showTypeFilter=true)
+  )
+
+  // Отладочная информация
+  useEffect(() => {
+    console.log("Filter states updated:", {
+      search,
+      category,
+      type,
+      hasActiveFilters,
+      showTypeFilter,
+      searchParams: Object.fromEntries(searchParams.entries())
+    })
+  }, [search, category, type, hasActiveFilters, showTypeFilter, searchParams])
+
   return (
-    <div className="flex flex-col gap-4 mb-6">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder={placeholder}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          />
-          {search && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
-              onClick={() => setSearch("")}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Категория" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все категории</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id.toString()}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {showTypeFilter && (
-          <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Тип" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все типы</SelectItem>
-              <SelectItem value="article">Статьи</SelectItem>
-              <SelectItem value="link">Ссылки</SelectItem>
-              <SelectItem value="video">Видео</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-
-        <div className="flex gap-2">
-          <Button onClick={handleSearch} disabled={isLoading} className="w-full sm:w-auto">
-            Поиск
-          </Button>
-          {(search || category !== "all" || type !== "all") && (
-            <Button variant="outline" onClick={handleReset} disabled={isLoading} className="w-full sm:w-auto">
-              Сбросить
-            </Button>
-          )}
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <Input
+          type="search"
+          placeholder={placeholder}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(isOpen && "bg-accent")}
+        >
+          <Filter className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleReset}
+          disabled={!hasActiveFilters}
+          title={hasActiveFilters ? "Сбросить фильтры" : "Нет активных фильтров"}
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleContent className="space-y-4">
+          <div className={cn("grid gap-4", showTypeFilter ? "md:grid-cols-2" : "md:grid-cols-1")}>
+            <div className="space-y-2">
+              <Label>Категория</Label>
+              <CategorySelect
+                selectedCategory={category !== "all" ? parseInt(category) : null}
+                onCategoryChange={handleCategoryChange}
+              />
+            </div>
+            {showTypeFilter && (
+              <div className="space-y-2">
+                <Label>Тип</Label>
+                <TypeSelect selectedType={type !== "all" ? type : null} onTypeChange={handleTypeChange} />
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   )
 }
