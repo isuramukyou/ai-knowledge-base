@@ -15,6 +15,8 @@ import Pagination from "@/components/pagination"
 import { getTelegramUser, getTelegramColorScheme, isTelegramWebApp, getTelegramInitData } from "@/lib/telegram-webapp"
 import type { AIModelWithDetails } from "@/lib/models/ai-model"
 import type { KnowledgeItemWithDetails } from "@/lib/models/knowledge-item"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface Author {
   first_name: string
@@ -532,11 +534,11 @@ export default function HomePage() {
                 {/* Кнопки редактирования/удаления */}
                 {(user && (user.is_admin || user.telegram_id == selectedModel.author_username || user.telegram_id == selectedModel.author_id)) && (
                   <div className="flex gap-2 mt-4">
-                    <Button variant="secondary" size="sm" onClick={() => router.push(`/models/${selectedModel.id}/edit`)}>
-                      <Edit className="w-4 h-4 mr-1" /> Редактировать
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/models/${selectedModel.id}/edit`)}>
+                      <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => setPendingDeleteModel(true)}>
-                      <Trash2 className="w-4 h-4 mr-1" /> Удалить
+                    <Button variant="ghost" size="sm" onClick={() => setPendingDeleteModel(true)}>
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 )}
@@ -623,17 +625,17 @@ export default function HomePage() {
                   {/* Содержание */}
                   {selectedKnowledge.content && (
                     <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <div dangerouslySetInnerHTML={{ __html: selectedKnowledge.content.replace(/\n/g, "<br>") }} />
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedKnowledge.content}</ReactMarkdown>
                     </div>
                   )}
                   {/* Кнопки редактирования/удаления */}
                   {(user && (user.is_admin || user.telegram_id == selectedKnowledge.author_username || user.telegram_id == selectedKnowledge.author_id)) && (
                     <div className="flex gap-2 mt-4">
-                      <Button variant="secondary" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
-                        <Edit className="w-4 h-4 mr-1" /> Редактировать
+                      <Button variant="ghost" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
+                        <Edit className="w-4 h-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => setPendingDeleteKnowledge(true)}>
-                        <Trash2 className="w-4 h-4 mr-1" /> Удалить
+                      <Button variant="ghost" size="sm" onClick={() => setPendingDeleteKnowledge(true)}>
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   )}

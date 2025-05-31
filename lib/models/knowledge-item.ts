@@ -162,12 +162,11 @@ export async function updateKnowledgeItem(
 
     if (fields.length === 0) return null
 
-    const setClause = fields.map((field, i) => `${field} = $${i + 3}`).join(", ")
+    const setClause = fields.map((field, i) => `${field} = $${i + 2}`).join(", ")
     const values = fields.map((field) => updates[field as keyof KnowledgeItem])
 
     const result = await query(`UPDATE knowledge_items SET ${setClause} WHERE id = $1 RETURNING *`, [
       id,
-      userId,
       ...values,
     ])
 

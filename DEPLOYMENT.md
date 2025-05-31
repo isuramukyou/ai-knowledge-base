@@ -88,20 +88,13 @@ NEXTAUTH_URL=https://yourdomain.com
 
 # Telegram Bot настройки
 TELEGRAM_BOT_TOKEN=1234567890:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-TELEGRAM_BOT_USERNAME=your_bot_username
 ADMIN_TELEGRAM_ID=123456789
-
-# Опциональные настройки
-UPLOADS_DIR=/app/uploads
-MAX_FILE_SIZE=10485760
-\`\`\`
 
 ### Важные замечания по переменным:
 
 - **NEXTAUTH_SECRET**: Сгенерируйте случайную строку минимум 32 символа
 - **NEXTAUTH_URL**: Замените на ваш реальный домен (https://yourdomain.com)
 - **TELEGRAM_BOT_TOKEN**: Токен от @BotFather
-- **TELEGRAM_BOT_USERNAME**: Username вашего бота (без @)
 - **ADMIN_TELEGRAM_ID**: Ваш Telegram ID (будете администратором)
 
 ### Генерация секретного ключа

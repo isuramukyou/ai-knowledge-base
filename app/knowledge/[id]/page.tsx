@@ -6,7 +6,23 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 export default async function KnowledgeItemPage({ params }: { params: { id: string } }) {
-  const item = await getKnowledgeItemById(Number(params.id))
+  // Если это страница создания новой статьи
+  if (params.id === "new") {
+    return (
+      <div className="max-w-2xl mx-auto py-8 px-4">
+        <h1 className="text-3xl font-bold mb-6">Новая статья</h1>
+        {/* Здесь будет форма создания новой статьи */}
+      </div>
+    )
+  }
+
+  // Проверяем, что ID является корректным числом
+  const id = Number(params.id)
+  if (isNaN(id)) {
+    return notFound()
+  }
+
+  const item = await getKnowledgeItemById(id)
   if (!item) return notFound()
 
   // Если это ссылка или видео — редирект на источник

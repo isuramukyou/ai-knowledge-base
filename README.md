@@ -43,7 +43,6 @@ REDIS_URL=redis://localhost:6379
 NEXTAUTH_SECRET=your-secret-key-here
 NEXTAUTH_URL=http://localhost:3000
 TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-TELEGRAM_BOT_USERNAME=your-bot-username
 ADMIN_TELEGRAM_ID=your-admin-telegram-id
 \`\`\`
 

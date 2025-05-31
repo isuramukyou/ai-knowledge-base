@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Trash2 } from "lucide-react"
 
 interface Category {
   id: number
@@ -32,8 +34,7 @@ export default function EditModelPage() {
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [categoryId, setCategoryId] = useState("")
-  const [coverUrl, setCoverUrl] = useState("")
+  const [categoryId, setCategoryId] = useState<number | null>(null)
   const [websiteUrl, setWebsiteUrl] = useState("")
   const [pricing, setPricing] = useState("")
   const [currency, setCurrency] = useState("")
@@ -42,6 +43,8 @@ export default function EditModelPage() {
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/categories").then(r => r.json()).then(setCategories)
@@ -55,8 +58,7 @@ export default function EditModelPage() {
       .then(data => {
         setName(data.name || "")
         setDescription(data.description || "")
-        setCategoryId(data.category_id?.toString() || "")
-        setCoverUrl(data.cover_url || "")
+        setCategoryId(data.category_id || null)
         setWebsiteUrl(data.website_url || "")
         if (data.pricing) {
           const [amount, curr, per] = data.pricing.split("|")
@@ -64,13 +66,56 @@ export default function EditModelPage() {
           setCurrency(curr || "")
           setPeriod(per || "month")
         }
+        if (data.cover_url) {
+          setCoverPreview(data.cover_url)
+        }
       })
   }, [id])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setCoverFile(file)
+      setCoverPreview(null)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setCoverPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
+
+    let uploadedCoverUrl = null
+    if (coverFile) {
+      const formData = new FormData()
+      formData.append("file", coverFile)
+
+      try {
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json()
+          uploadedCoverUrl = uploadData.url
+        } else {
+          setError("Ошибка при загрузке изображения")
+          setLoading(false)
+          return
+        }
+      } catch (e) {
+        setError("Ошибка сети при загрузке")
+        setLoading(false)
+        return
+      }
+    }
+
     try {
       const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
       const res = await fetch(`/api/models/${id}`, {
@@ -83,7 +128,7 @@ export default function EditModelPage() {
           name,
           description,
           category_id: categoryId,
-          cover_url: coverUrl,
+          cover_url: uploadedCoverUrl,
           website_url: websiteUrl,
           pricing: pricing && currency && period ? `${pricing}|${currency}|${period}` : "",
         }),
@@ -104,9 +149,9 @@ export default function EditModelPage() {
     <div className="max-w-lg mx-auto py-8 px-4">
       <h1 className="text-2xl font-bold mb-6">Редактировать нейросеть</h1>
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <Input placeholder="Название" value={name} onChange={e => setName(e.target.value)} required />
-        <Textarea placeholder="Описание" value={description} onChange={e => setDescription(e.target.value)} required />
-        <Select value={categoryId} onValueChange={setCategoryId}>
+        <Input placeholder="Название" value={name} onChange={e => setName(e.target.value)} required disabled={loading} />
+        <Textarea placeholder="Описание" value={description} onChange={e => setDescription(e.target.value)} required disabled={loading} />
+        <Select value={categoryId?.toString() || ""} onValueChange={value => setCategoryId(Number(value))} disabled={loading}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Категория" />
           </SelectTrigger>
@@ -116,8 +161,34 @@ export default function EditModelPage() {
             ))}
           </SelectContent>
         </Select>
-        <Input placeholder="URL обложки" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} />
-        <Input placeholder="Сайт" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} />
+        <div className="space-y-2">
+          <Label htmlFor="coverImage">Изображение обложки</Label>
+          <Input id="coverImage" type="file" accept="image/*" onChange={handleFileChange} disabled={loading} />
+          {(coverPreview || coverFile) && (
+            <div className="relative w-full aspect-video rounded-md overflow-hidden">
+              <img
+                src={coverPreview || "/placeholder.svg"}
+                alt="Cover Preview"
+                className="w-full h-full object-cover"
+              />
+              {coverPreview && (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 rounded-full"
+                  onClick={() => {
+                    setCoverFile(null);
+                    setCoverPreview(null);
+                  }}
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+        <Input placeholder="Сайт" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} disabled={loading} />
         <div className="flex gap-2 items-center">
           <Input
             type="number"
@@ -157,7 +228,12 @@ export default function EditModelPage() {
           </div>
         )}
         {error && <div className="text-red-500 text-sm">{error}</div>}
-        <Button type="submit" disabled={loading}>{loading ? "Сохраняю..." : "Сохранить"}</Button>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => router.push("/")}>
+            Отмена
+          </Button>
+          <Button type="submit" disabled={loading}>{loading ? "Сохраняю..." : "Сохранить"}</Button>
+        </div>
       </form>
     </div>
   )
