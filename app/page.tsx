@@ -254,11 +254,7 @@ export default function HomePage() {
     <Card
       className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] bg-card/50 backdrop-blur-sm border-border/50"
       onClick={() => {
-        if (item.type === "link" || item.type === "video") {
-          window.open(item.url || "", "_blank")
-        } else {
-          setSelectedKnowledge(item)
-        }
+        setSelectedKnowledge(item);
       }}
     >
       <CardContent className="p-0">
@@ -474,7 +470,7 @@ export default function HomePage() {
 
       {/* Model Detail Modal */}
       <Dialog open={!!selectedModel} onOpenChange={() => setSelectedModel(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl" showClose={false}>
           {selectedModel && (
             <>
               <DialogHeader>
@@ -525,6 +521,7 @@ export default function HomePage() {
                 {selectedModel.website_url && (
                   <Button
                     size="lg"
+                    variant="secondary"
                     className="mt-4 w-full flex items-center justify-center gap-2 text-base font-semibold"
                     onClick={() => openWebsite(selectedModel.website_url || "")}
                   >
@@ -580,29 +577,26 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Knowledge Detail Modal */}
-      <Dialog open={!!selectedKnowledge} onOpenChange={() => setSelectedKnowledge(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
+      {/* Knowledge Item Detail Modal */}
+      <Dialog open={selectedKnowledge !== null} onOpenChange={(open) => !open && setSelectedKnowledge(null)}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-[600px] lg:max-w-[800px] rounded-2xl" showClose={false}>
           {selectedKnowledge && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-2xl">{selectedKnowledge.title}</DialogTitle>
-              </DialogHeader>
-              {/* Описание */}
-              {selectedKnowledge.description && (
-                <p className="text-muted-foreground text-sm mt-2">{selectedKnowledge.description}</p>
-              )}
-              <div className="space-y-6">
-                {selectedKnowledge.cover_url && (
+            <div className="space-y-4">
+              {selectedKnowledge.cover_url && (
+                <div className="aspect-video w-full overflow-hidden rounded-lg">
                   <img
                     src={selectedKnowledge.cover_url || "/placeholder.svg"}
                     alt={selectedKnowledge.title}
-                    className="w-full aspect-video object-cover rounded-xl"
+                    className="w-full h-full object-cover"
                   />
-                )}
-                <div className="space-y-4">
-                  {/* Автор и Категория */}
-                  <div className="flex items-center justify-between mb-2">
+                </div>
+              )}
+              <DialogHeader>
+                <DialogTitle>{selectedKnowledge.title}</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {selectedKnowledge.category_name && (
                     <Badge
                       variant="secondary"
                       style={{
@@ -613,42 +607,65 @@ export default function HomePage() {
                     >
                       {selectedKnowledge.category_name}
                     </Badge>
-                    <AuthorBadge
-                      author={{
-                        first_name: selectedKnowledge.author_first_name,
-                        last_name: selectedKnowledge.author_last_name,
-                        username: selectedKnowledge.author_username,
-                        avatar_url: selectedKnowledge.author_avatar_url,
-                      }}
-                    />
-                  </div>
-                  {/* Содержание */}
-                  {selectedKnowledge.content && (
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedKnowledge.content}</ReactMarkdown>
-                    </div>
                   )}
-                  {/* Кнопки редактирования/удаления */}
-                  {(user && (user.is_admin || user.telegram_id == selectedKnowledge.author_username || user.telegram_id == selectedKnowledge.author_id)) && (
-                    <div className="flex gap-2 mt-4">
-                      <Button variant="ghost" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setPendingDeleteKnowledge(true)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <span className="text-lg">
+                    {selectedKnowledge.type === "article" ? "📄" : selectedKnowledge.type === "video" ? "🎥" : "🔗"}
+                  </span>
                 </div>
+                {selectedKnowledge.author_first_name && (
+                  <AuthorBadge
+                    author={{
+                      first_name: selectedKnowledge.author_first_name,
+                      last_name: selectedKnowledge.author_last_name,
+                      username: selectedKnowledge.author_username,
+                      avatar_url: selectedKnowledge.author_avatar_url,
+                    }}
+                  />
+                )}
               </div>
-            </>
+              <p className="text-sm text-muted-foreground">{selectedKnowledge.description}</p>
+              {/* Content or Link Button */}
+              {selectedKnowledge.type === "link" || selectedKnowledge.type === "video" ? (
+                selectedKnowledge.url && (
+                  <Button
+                    variant="secondary"
+                    className="mt-4 w-full flex items-center justify-center gap-2 text-base font-semibold"
+                    onClick={() => openWebsite(selectedKnowledge.url!)}
+                  >
+                    {selectedKnowledge.type === "link" ? "Открыть ссылку" : "Смотреть видео"}
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </Button>
+                )
+              ) : selectedKnowledge.type === "article" ? (
+                /* Temporarily commented out: Article content display is disabled */
+                /*
+                <div className="prose dark:prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedKnowledge.content || ""}</ReactMarkdown>
+                </div>
+                */
+                <div className="text-center text-muted-foreground">
+                   Содержание статьи временно недоступно.
+                </div>
+              ) : null}
+              {/* Edit and Delete Buttons (Optional, based on permissions) */}
+              {(user && (user.is_admin || user.telegram_id === selectedKnowledge.author_username || user.telegram_id === selectedKnowledge.author_id)) && (
+                <div className="flex gap-2 mt-4">
+                   <Button variant="ghost" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
+                     <Edit className="w-4 h-4" />
+                   </Button>
+                   <Button variant="ghost" size="sm" onClick={() => setPendingDeleteKnowledge(true)}>
+                     <Trash2 className="w-4 h-4" />
+                   </Button>
+                </div>
+              )}
+            </div>
           )}
-          {/* Модалка подтверждения удаления записи */}
-          {pendingDeleteKnowledge && (
+          {/* Модалка подтверждения удаления записи БД */}
+          {pendingDeleteKnowledge && selectedKnowledge && (
             <Dialog open={pendingDeleteKnowledge} onOpenChange={setPendingDeleteKnowledge}>
               <DialogContent className="max-w-sm">
                 <DialogHeader>
-                  <DialogTitle>Удалить запись?</DialogTitle>
+                  <DialogTitle>Удалить запись из базы знаний?</DialogTitle>
                 </DialogHeader>
                 <p>Вы уверены, что хотите удалить эту запись? Это действие необратимо.</p>
                 <div className="flex gap-2 mt-4">
@@ -665,7 +682,7 @@ export default function HomePage() {
                       setPendingDeleteKnowledge(false);
                       setSelectedKnowledge(null);
                       if (res.ok) {
-                        fetchKnowledgeItems();
+                        fetchKnowledgeItems(); // Refresh knowledge items list
                       }
                     }}
                   >

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Trash2 } from "lucide-react"
+import imageCompression from 'browser-image-compression';
 
 interface Category {
   id: number
@@ -45,6 +46,7 @@ export default function EditModelPage() {
   const [error, setError] = useState("")
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [originalCoverUrl, setOriginalCoverUrl] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/categories").then(r => r.json()).then(setCategories)
@@ -68,20 +70,42 @@ export default function EditModelPage() {
         }
         if (data.cover_url) {
           setCoverPreview(data.cover_url)
+          setOriginalCoverUrl(data.cover_url)
         }
       })
   }, [id])
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setCoverFile(file)
-      setCoverPreview(null)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setCoverPreview(reader.result as string)
+      const maxSizeBytes = 3 * 1024 * 1024; // 3 MB
+
+      if (file.size > maxSizeBytes) {
+        setError(`Размер изображения не должен превышать ${maxSizeBytes / 1024 / 1024} MB.`);
+        // Optionally clear the file input
+        e.target.value = '';
+        return;
       }
-      reader.readAsDataURL(file)
+
+      // Compress image before setting state
+      const options = {
+        maxSizeMB: 1, // Maximum size in MB
+        maxWidthOrHeight: 1920, // Maximum width or height
+        useWebWorker: true, // Use web worker for better performance
+      };
+      try {
+        const compressedFile = await imageCompression(file, options);
+        setCoverFile(compressedFile);
+        setCoverPreview(null);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setCoverPreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error('Error compressing image:', error);
+        // Handle error (e.g., show a message to the user)
+      }
     }
   }
 
@@ -90,7 +114,9 @@ export default function EditModelPage() {
     setLoading(true)
     setError("")
 
-    let uploadedCoverUrl = null
+    let uploadedCoverUrl: string | null = null
+    let coverUrlToSend: string | null | undefined = undefined
+
     if (coverFile) {
       const formData = new FormData()
       formData.append("file", coverFile)
@@ -104,6 +130,7 @@ export default function EditModelPage() {
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
           uploadedCoverUrl = uploadData.url
+          coverUrlToSend = uploadedCoverUrl // User uploaded a new file
         } else {
           setError("Ошибка при загрузке изображения")
           setLoading(false)
@@ -114,6 +141,15 @@ export default function EditModelPage() {
         setLoading(false)
         return
       }
+    } else if (originalCoverUrl && !coverPreview) {
+      // User removed the original cover image
+      coverUrlToSend = null
+    } else if (!originalCoverUrl && !coverPreview) {
+      // No original cover and no new cover
+      coverUrlToSend = null
+    } else if (originalCoverUrl && coverPreview === originalCoverUrl) {
+      // Original cover exists and was not changed, do not send cover_url in payload
+      coverUrlToSend = undefined;
     }
 
     try {
@@ -128,9 +164,9 @@ export default function EditModelPage() {
           name,
           description,
           category_id: categoryId,
-          cover_url: uploadedCoverUrl,
           website_url: websiteUrl,
           pricing: pricing && currency && period ? `${pricing}|${currency}|${period}` : "",
+          ...(coverUrlToSend !== undefined && { cover_url: coverUrlToSend }), // Only include if it's meant to be updated/removed
         }),
       })
       if (res.ok) {
@@ -179,6 +215,9 @@ export default function EditModelPage() {
                   onClick={() => {
                     setCoverFile(null);
                     setCoverPreview(null);
+                    if (originalCoverUrl) {
+                      setOriginalCoverUrl(null);
+                    }
                   }}
                   disabled={loading}
                 >
@@ -188,7 +227,6 @@ export default function EditModelPage() {
             </div>
           )}
         </div>
-        <Input placeholder="Сайт" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} disabled={loading} />
         <div className="flex gap-2 items-center">
           <Input
             type="number"

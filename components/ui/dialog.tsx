@@ -33,12 +33,21 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showClose?: boolean }
+>(({ className, children, showClose = true, ...props }, ref) => {
   const [isDragging, setIsDragging] = React.useState(false)
   const [y, setY] = React.useState(0)
   const contentRef = React.useRef<HTMLDivElement>(null)
   const closeRef = React.useRef<HTMLButtonElement>(null)
+
+  // Reset state when dialog opens
+  React.useEffect(() => {
+    const dialog = contentRef.current?.closest('[data-state]')
+    if (dialog?.getAttribute('data-state') === 'open') {
+      setY(0)
+      setIsDragging(false)
+    }
+  }, [contentRef.current])
 
   const bind = useDrag(({ movement: [, my], down, velocity: [, vy], canceled }) => {
     // Allow dragging in both directions but prioritize downward movement
@@ -86,8 +95,8 @@ const DialogContent = React.forwardRef<
             exit={{ top: "100%", left: 0, right: 0, translateX: "0%", translateY: "0%" }}
             transition={{
               type: "spring",
-              damping: 20,
-              stiffness: 250,
+              damping: 30,
+              stiffness: 400,
               mass: 0.8
             }}
             className={cn(
@@ -101,7 +110,10 @@ const DialogContent = React.forwardRef<
             {children}
             <DialogPrimitive.Close 
               ref={closeRef}
-              className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+              className={cn(
+                "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+                !showClose && "invisible"
+              )}
             >
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>

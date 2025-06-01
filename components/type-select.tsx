@@ -16,7 +16,8 @@ export function TypeSelect({ selectedType, onTypeChange }: TypeSelectProps) {
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">Все типы</SelectItem>
-        <SelectItem value="article">Статьи</SelectItem>
+        {/* Temporarily commented out: Article type filter is disabled */}
+        {/* <SelectItem value="article">Статьи</SelectItem> */}
         <SelectItem value="link">Ссылки</SelectItem>
         <SelectItem value="video">Видео</SelectItem>
       </SelectContent>

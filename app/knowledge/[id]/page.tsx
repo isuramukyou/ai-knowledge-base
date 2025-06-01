@@ -6,16 +6,6 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 export default async function KnowledgeItemPage({ params }: { params: { id: string } }) {
-  // Если это страница создания новой статьи
-  if (params.id === "new") {
-    return (
-      <div className="max-w-2xl mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-6">Новая статья</h1>
-        {/* Здесь будет форма создания новой статьи */}
-      </div>
-    )
-  }
-
   // Проверяем, что ID является корректным числом
   const id = Number(params.id)
   if (isNaN(id)) {
@@ -24,6 +14,29 @@ export default async function KnowledgeItemPage({ params }: { params: { id: stri
 
   const item = await getKnowledgeItemById(id)
   if (!item) return notFound()
+
+  // Temporarily hide article content
+  if (item.type === "article") {
+    return (
+      <div className="max-w-2xl mx-auto py-8 px-4 text-center text-muted-foreground">
+        <h1 className="text-3xl font-bold mb-4">{item.title}</h1>
+        <p>Содержание статьи временно недоступно.</p>
+        {/* Optionally add author info if desired */}
+         <div className="flex items-center justify-center gap-2 mt-4 text-sm">
+          <Avatar className="w-6 h-6">
+            <AvatarImage src={item.author_avatar_url || `https://t.me/i/userpic/320/${item.author_username ?? ''}.jpg`} />
+            <AvatarFallback>
+              {item.author_first_name?.[0]}
+              {item.author_last_name?.[0]}
+            </AvatarFallback>
+          </Avatar>
+          <span>
+            {item.author_first_name} {item.author_last_name}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   // Если это ссылка или видео — редирект на источник
   if ((item.type === "link" || item.type === "video") && item.url) {
@@ -38,7 +51,7 @@ export default async function KnowledgeItemPage({ params }: { params: { id: stri
       <h1 className="text-3xl font-bold mb-2">{item.title}</h1>
       <div className="flex items-center gap-2 mb-6 text-muted-foreground text-sm">
         <Avatar className="w-6 h-6">
-          <AvatarImage src={item.author_avatar_url || `https://t.me/i/userpic/320/${item.author_username}.jpg`} />
+          <AvatarImage src={item.author_avatar_url || `https://t.me/i/userpic/320/${item.author_username ?? ''}.jpg`} />
           <AvatarFallback>
             {item.author_first_name?.[0]}
             {item.author_last_name?.[0]}

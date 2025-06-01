@@ -11,6 +11,7 @@ import dynamic from "next/dynamic"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Trash2 } from "lucide-react"
+import imageCompression from 'browser-image-compression';
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false })
 
@@ -31,7 +32,6 @@ interface KnowledgeItem {
 }
 
 const typeOptions = [
-  { value: "article", label: "Статья", icon: "📄" },
   { value: "link", label: "Ссылка", icon: "🔗" },
   { value: "video", label: "Видео", icon: "🎥" },
 ]
@@ -44,15 +44,16 @@ export default function EditKnowledgePage() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [content, setContent] = useState<string | undefined>("")
-  const [type, setType] = useState("article")
+  const [type, setType] = useState("link")
   const [url, setUrl] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
-  const [categoryId, setCategoryId] = useState("")
+  const [categoryId, setCategoryId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [originalCoverUrl, setOriginalCoverUrl] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/categories")
@@ -69,29 +70,51 @@ export default function EditKnowledgePage() {
       .then((data: KnowledgeItem) => {
         setTitle(data.title || "")
         setDescription(data.description || "")
-        setContent(data.content || "")
-        setType(data.type || "article")
+        setContent(data.content ?? "")
+        setType(data.type === "article" ? "link" : data.type || "link")
         setUrl(data.url || "")
         setCoverUrl(data.cover_url || "")
-        setCategoryId(data.category_id?.toString() || "")
+        setCategoryId(data.category_id || null)
         if (data.cover_url) {
           setCoverPreview(data.cover_url)
+          setOriginalCoverUrl(data.cover_url)
         }
       })
       .catch(e => setError("Ошибка при загрузке записи: " + e.message))
       .finally(() => setLoading(false))
   }, [id])
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setCoverFile(file)
-      setCoverUrl("")
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setCoverPreview(reader.result as string)
+      const maxSizeBytes = 3 * 1024 * 1024; // 3 MB
+
+      if (file.size > maxSizeBytes) {
+        setError(`Размер изображения не должен превышать ${maxSizeBytes / 1024 / 1024} MB.`);
+        // Optionally clear the file input
+        e.target.value = '';
+        return;
       }
-      reader.readAsDataURL(file)
+
+      // Compress image before setting state
+      const options = {
+        maxSizeMB: 1, // Maximum size in MB
+        maxWidthOrHeight: 1920, // Maximum width or height
+        useWebWorker: true, // Use web worker for better performance
+      };
+      try {
+        const compressedFile = await imageCompression(file, options);
+        setCoverFile(compressedFile);
+        setCoverUrl("");
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setCoverPreview(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error('Error compressing image:', error);
+        // Handle error (e.g., show a message to the user)
+      }
     }
   }
 
@@ -100,7 +123,9 @@ export default function EditKnowledgePage() {
     setLoading(true)
     setError("")
 
-    let uploadedCoverUrl = coverUrl
+    let uploadedCoverUrl: string | null = null
+    let coverUrlToSend: string | null | undefined = undefined
+
     if (coverFile) {
       const formData = new FormData()
       formData.append("file", coverFile)
@@ -114,6 +139,7 @@ export default function EditKnowledgePage() {
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json()
           uploadedCoverUrl = uploadData.url
+          coverUrlToSend = uploadedCoverUrl
         } else {
           setError("Ошибка при загрузке изображения")
           setLoading(false)
@@ -124,6 +150,12 @@ export default function EditKnowledgePage() {
         setLoading(false)
         return
       }
+    } else if (originalCoverUrl && !coverPreview) {
+      coverUrlToSend = null
+    } else if (!originalCoverUrl && !coverPreview) {
+      coverUrlToSend = null
+    } else if (originalCoverUrl && coverPreview === originalCoverUrl) {
+      coverUrlToSend = undefined;
     }
 
     try {
@@ -140,8 +172,8 @@ export default function EditKnowledgePage() {
           content: type === "article" ? content : null,
           type,
           url: type !== "article" ? url : null,
-          cover_url: uploadedCoverUrl,
-          category_id: categoryId,
+          category_id: categoryId !== null ? Number(categoryId) : null,
+          ...(coverUrlToSend !== undefined && { cover_url: coverUrlToSend }),
         }),
       })
       if (res.ok) {
@@ -180,7 +212,7 @@ export default function EditKnowledgePage() {
         </div>
         <Input placeholder="Заголовок" value={title} onChange={e => setTitle(e.target.value)} required disabled={loading} />
         <Textarea placeholder="Краткое описание" value={description} onChange={e => setDescription(e.target.value)} required disabled={loading} />
-        <Select value={categoryId} onValueChange={setCategoryId} disabled={loading}>
+        <Select value={categoryId?.toString() || ""} onValueChange={value => setCategoryId(value === "" ? null : Number(value))} disabled={loading}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Категория" />
           </SelectTrigger>
@@ -208,7 +240,9 @@ export default function EditKnowledgePage() {
                   onClick={() => {
                     setCoverFile(null);
                     setCoverPreview(null);
-                    setCoverUrl("");
+                    if (originalCoverUrl) {
+                      setOriginalCoverUrl(null);
+                    }
                   }}
                   disabled={loading}
                 >
@@ -217,15 +251,14 @@ export default function EditKnowledgePage() {
               )}
             </div>
           )}
-          {!coverFile && !coverPreview && !coverUrl && (
-            <Input placeholder="URL обложки" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} disabled={loading} />
-          )}
         </div>
         {type !== "article" && (
           <Input placeholder={type === "link" ? "URL статьи" : "URL видео"} value={url} onChange={e => setUrl(e.target.value)} required disabled={loading} />
         )}
-        {type === "article" && (
-          <div data-color-mode="light">
+        {/* Temporarily commented out: Article type editor is disabled */}
+        {/*
+        {!loading && type === "article" && (
+          <div data-color-mode="light" className="w-full">
             <MDEditor
               value={content}
               onChange={v => setContent(v || "")}
@@ -235,6 +268,7 @@ export default function EditKnowledgePage() {
             />
           </div>
         )}
+        */}
         {error && <div className="text-red-500 text-sm">{error}</div>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => router.push("/")} disabled={loading}>
