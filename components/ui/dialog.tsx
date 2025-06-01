@@ -3,14 +3,17 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, HTMLMotionProps } from "framer-motion"
 import { useDrag } from "@use-gesture/react"
 
 import { cn } from "@/lib/utils"
 
 const Dialog = DialogPrimitive.Root
+
 const DialogTrigger = DialogPrimitive.Trigger
+
 const DialogPortal = DialogPrimitive.Portal
+
 const DialogClose = DialogPrimitive.Close
 
 const DialogOverlay = React.forwardRef<
@@ -32,39 +35,59 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showClose?: boolean }
 >(({ className, children, showClose = true, ...props }, ref) => {
+  const [isDragging, setIsDragging] = React.useState(false)
+  const [y, setY] = React.useState(0)
   const contentRef = React.useRef<HTMLDivElement>(null)
   const closeRef = React.useRef<HTMLButtonElement>(null)
-  const [dragY, setDragY] = React.useState(0)
-  const [isDragging, setIsDragging] = React.useState(false)
 
-  const bind = useDrag(({ movement: [, my], down, velocity: [, vy], canceled }) => {
-    const scrollTop = contentRef.current?.scrollTop || 0
+  // Reset state when dialog opens or closes
+  React.useEffect(() => {
+    const dialog = contentRef.current?.closest('[data-state]')
+    const isOpen = dialog?.getAttribute('data-state') === 'open'
     
-    // Only allow drag down when at the top
-    if (scrollTop <= 0) {
-      if (down) {
-        setDragY(Math.max(0, my))
-        setIsDragging(true)
-      } else {
-        // Check if we should close
-        if (my > 50 || vy > 0.5) {
-          closeRef.current?.click()
-        }
-        setDragY(0)
-        setIsDragging(false)
+    if (isOpen) {
+      setY(0)
+      setIsDragging(false)
+      // Reset scroll position to top
+      if (contentRef.current) {
+        contentRef.current.scrollTop = 0
       }
-    }
-
-    if (canceled) {
-      setDragY(0)
+    } else {
+      // Reset all states when dialog closes
+      setY(0)
       setIsDragging(false)
     }
-  }, {
+  }, [contentRef.current])
+
+  const bind = useDrag(({ movement: [, my], down, velocity: [, vy], canceled }) => {
+    // Allow dragging in both directions but prioritize downward movement
+    const newY = down ? my : 0;
+    setY(newY)
+    setIsDragging(down)
+
+    // Check if we're at the top of the modal content
+    const scrollContainer = contentRef.current;
+    const isAtTop = scrollContainer ? scrollContainer.scrollTop <= 1 : true; // Default to true if container not found
+
+    // Close the dialog only if dragged down significantly or with enough downward velocity
+    // and we're at the top of the content
+    if (!down && my > 0 && isAtTop && (my > 30 || vy > 0.05)) {
+      // Use the close button's click handler directly
+      closeRef.current?.click()
+      // Reset states after closing
+      setY(0)
+      setIsDragging(false)
+    }
+
+    if (canceled || (!down && my <= 0)) {
+      setY(0) // Snap back if drag was cancelled or if swiped upward
+    }
+  }, { 
     axis: 'y',
     filterTaps: true,
-    bounds: { top: 0, bottom: 100 },
+    bounds: { top: -50, bottom: 300 },
     rubberband: true,
-    preventScroll: true
+    preventScroll: false
   })
 
   return (
@@ -84,20 +107,20 @@ const DialogContent = React.forwardRef<
           {...props}
         >
           <motion.div
-            {...bind()}
-            style={{ y: dragY }}
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
+            {...(bind() as HTMLMotionProps<"div">)}
+            style={{ y }}
+            initial={{ opacity: 0, top: "100%", left: "50%", x: "-50%" }}
+            animate={{ opacity: 1, top: "50%", left: "50%", x: "-50%", y: "-50%" }}
+            exit={{ opacity: 0, top: "100%", left: "50%", x: "-50%" }}
             transition={{
               type: "spring",
               damping: 25,
               stiffness: 300,
-              mass: 0.5
+              mass: 0.5,
+              opacity: { duration: 0.2 }
             }}
             className={cn(
-              "fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg sm:w-[calc(100%-4rem)]",
-              "max-h-[90vh] overflow-y-auto overscroll-contain",
+              "fixed z-50 grid w-[calc(100%-2rem)] max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 mx-auto px-6 sm:px-8 sm:w-[calc(100%-4rem)] rounded-lg max-h-[90vh] overflow-y-auto overscroll-contain",
               isDragging && "cursor-grabbing",
               !isDragging && "cursor-grab",
               className

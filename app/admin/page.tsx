@@ -71,11 +71,11 @@ export default function AdminPage() {
   }, [activeTab])
 
   // Загрузка пользователей
-  const fetchUsers = async () => {
+  const fetchUsers = async (page: number = pagination.page) => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
-      params.set("page", pagination.page.toString())
+      params.set("page", page.toString())
       params.set("limit", "10")
       params.set("include_posts_count", "true")
 
@@ -369,7 +369,7 @@ export default function AdminPage() {
                 <Pagination
                   currentPage={pagination.page}
                   totalPages={pagination.totalPages}
-                  onPageChange={(page) => fetchUsers()}
+                  onPageChange={(page) => fetchUsers(page)}
                 />
               </div>
             ) : (
