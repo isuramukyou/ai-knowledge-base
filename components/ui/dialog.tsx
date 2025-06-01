@@ -55,14 +55,18 @@ const DialogContent = React.forwardRef<
     setY(newY)
     setIsDragging(down)
 
-    // Close the dialog if dragged down significantly or with enough velocity
-    if (!down && (newY > 30 || vy > 0.05)) {
+    // Check if we're at the top of the modal content
+    const isAtTop = contentRef.current?.scrollTop === 0;
+
+    // Close the dialog only if dragged down significantly or with enough downward velocity
+    // and we're at the top of the content
+    if (!down && my > 0 && isAtTop && (my > 30 || vy > 0.05)) {
       // Use the close button's click handler directly
       closeRef.current?.click()
     }
 
-    if (canceled) {
-      setY(0) // Snap back if drag was cancelled
+    if (canceled || (!down && my <= 0)) {
+      setY(0) // Snap back if drag was cancelled or if swiped upward
     }
   }, { 
     axis: 'y',
@@ -90,17 +94,18 @@ const DialogContent = React.forwardRef<
           <motion.div
             {...(bind() as HTMLMotionProps<"div">)}
             style={{ y }}
-            initial={{ top: "100%", left: 0, right: 0, translateX: "0%", translateY: "0%" }}
-            animate={{ top: "50%", left: 0, right: 0, translateX: "0%", translateY: "-50%" }}
-            exit={{ top: "100%", left: 0, right: 0, translateX: "0%", translateY: "0%" }}
+            initial={{ opacity: 0, top: "100%", left: "50%", x: "-50%" }}
+            animate={{ opacity: 1, top: "50%", left: "50%", x: "-50%", y: "-50%" }}
+            exit={{ opacity: 0, top: "100%", left: "50%", x: "-50%" }}
             transition={{
               type: "spring",
-              damping: 30,
-              stiffness: 400,
-              mass: 0.8
+              damping: 25,
+              stiffness: 300,
+              mass: 0.5,
+              opacity: { duration: 0.2 }
             }}
             className={cn(
-              "fixed z-50 grid w-[calc(100%-2rem)] max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 mx-auto px-6 sm:px-8 sm:w-[calc(100%-4rem)]",
+              "fixed z-50 grid w-[calc(100%-2rem)] max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 mx-auto px-6 sm:px-8 sm:w-[calc(100%-4rem)] rounded-lg",
               isDragging && "cursor-grabbing",
               !isDragging && "cursor-grab",
               className
