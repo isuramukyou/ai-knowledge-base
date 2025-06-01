@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getAllAIModels, createAIModel } from "@/lib/models/ai-model"
+import { getAllAIModels, createAIModel, getAIModelById } from "@/lib/models/ai-model"
 import { getUserByTelegramId } from "@/lib/models/user"
+import { sendNewAIModelNotification } from "@/lib/telegram"
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,6 +70,18 @@ export async function POST(request: NextRequest) {
     })
 
     console.log("AI model created successfully:", model.id)
+
+    // Получение модели с деталями для уведомления
+    const modelWithDetails = await getAIModelById(model.id)
+    if (modelWithDetails) {
+      // Отправка уведомления в Telegram
+      try {
+        await sendNewAIModelNotification(modelWithDetails)
+      } catch (error) {
+        console.error("Error sending Telegram notification:", error)
+        // Не прерываем выполнение, если не удалось отправить уведомление
+      }
+    }
 
     return NextResponse.json(model, { status: 201 })
   } catch (error) {

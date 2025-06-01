@@ -219,7 +219,7 @@ export default function HomePage() {
             <img
               src={model.cover_url || "/placeholder.svg?height=200&width=300"}
               alt={model.name}
-              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              className="w-full h-full object-cover"
             />
           </div>
         )}
@@ -263,7 +263,7 @@ export default function HomePage() {
             <img
               src={item.cover_url || "/placeholder.svg?height=200&width=300"}
               alt={item.title}
-              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              className="w-full h-full object-cover"
             />
           </div>
         )}

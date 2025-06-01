@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getAllKnowledgeItems, createKnowledgeItem } from "@/lib/models/knowledge-item"
+import { getAllKnowledgeItems, createKnowledgeItem, getKnowledgeItemById } from "@/lib/models/knowledge-item"
 import { getUserByTelegramId } from "@/lib/models/user"
+import { sendNewKnowledgeItemNotification } from "@/lib/telegram"
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,6 +84,18 @@ export async function POST(request: NextRequest) {
     })
 
     console.log("Knowledge item created successfully:", item.id)
+
+    // Получение записи с деталями для уведомления
+    const itemWithDetails = await getKnowledgeItemById(item.id)
+    if (itemWithDetails) {
+      // Отправка уведомления в Telegram
+      try {
+        await sendNewKnowledgeItemNotification(itemWithDetails)
+      } catch (error) {
+        console.error("Error sending Telegram notification:", error)
+        // Не прерываем выполнение, если не удалось отправить уведомление
+      }
+    }
 
     return NextResponse.json(item, { status: 201 })
   } catch (error) {

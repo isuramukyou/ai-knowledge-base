@@ -62,14 +62,6 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Currencies table
-CREATE TABLE IF NOT EXISTS currencies (
-    id SERIAL PRIMARY KEY,
-    symbol VARCHAR(8) NOT NULL,
-    name VARCHAR(32) NOT NULL,
-    code VARCHAR(8) NOT NULL
-);
-
 -- Insert default categories only if not exist
 DO $$
 BEGIN
@@ -81,23 +73,6 @@ BEGIN
       ('Программирование', '#8b5cf6'),
       ('Обучение', '#ef4444'),
       ('Аналитика', '#06b6d4');
-  END IF;
-END $$;
-
--- Insert currencies only if not exist
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM currencies WHERE code = 'RUB') THEN
-    INSERT INTO currencies (symbol, name, code) VALUES
-      ('₽', 'Российский рубль', 'RUB');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM currencies WHERE code = 'USD') THEN
-    INSERT INTO currencies (symbol, name, code) VALUES
-      ('$', 'Доллар США', 'USD');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM currencies WHERE code = 'EUR') THEN
-    INSERT INTO currencies (symbol, name, code) VALUES
-      ('€', 'Евро', 'EUR');
   END IF;
 END $$;
 

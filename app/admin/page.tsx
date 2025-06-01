@@ -276,10 +276,10 @@ export default function AdminPage() {
 
           <Button 
             variant="outline" 
-            className="rounded-full px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base"
+            className="rounded-full px-2 sm:px-4 py-1 sm:py-2 text-sm sm:text-base flex items-center justify-center"
             onClick={() => router.push("/")}
           >
-            <Home className="w-4 h-4 mr-1 sm:mr-2" />
+            <Home className="w-4 h-4 xs:mr-2" />
             <span className="hidden xs:inline">На главную</span>
           </Button>
         </div>

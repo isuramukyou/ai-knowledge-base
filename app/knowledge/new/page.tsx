@@ -166,7 +166,7 @@ export default function NewKnowledgePage() {
           </Select>
         </div>
         <Input placeholder="Заголовок" value={title} onChange={e => setTitle(e.target.value)} required disabled={loading} />
-        <Textarea placeholder="Краткое описание" value={description} onChange={e => setDescription(e.target.value)} required disabled={loading} />
+        <Textarea placeholder="Описание" value={description} onChange={e => setDescription(e.target.value)} required disabled={loading} />
         <Select value={categoryId?.toString() || ""} onValueChange={value => setCategoryId(value === "" ? null : Number(value))} disabled={loading}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Категория" />
@@ -177,6 +177,9 @@ export default function NewKnowledgePage() {
             ))}
           </SelectContent>
         </Select>
+        {type !== "article" && (
+          <Input placeholder={type === "link" ? "Ссылка на статью" : "Ссылка на видео"} value={url} onChange={e => setUrl(e.target.value)} required disabled={loading} />
+        )}
         <div className="space-y-2">
           <Label htmlFor="coverImage">Изображение обложки</Label>
           <Input id="coverImage" type="file" accept="image/*" onChange={handleFileChange} disabled={loading} />
@@ -205,9 +208,6 @@ export default function NewKnowledgePage() {
             </div>
           )}
         </div>
-        {type !== "article" && (
-          <Input placeholder={type === "link" ? "URL статьи" : "URL видео"} value={url} onChange={e => setUrl(e.target.value)} required disabled={loading} />
-        )}
         {/* Temporarily commented out: Article type is disabled */}
         {/*
         {!loading && type === "article" && (

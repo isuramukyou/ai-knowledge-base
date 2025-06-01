@@ -178,34 +178,6 @@ export default function NewModelPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="space-y-2">
-          <Label htmlFor="coverImage">Изображение обложки</Label>
-          <Input id="coverImage" type="file" accept="image/*" onChange={handleFileChange} disabled={loading} />
-          {(coverPreview || coverUrl) && (
-            <div className="relative w-full aspect-video rounded-md overflow-hidden">
-              <img
-                src={coverPreview || coverUrl || "/placeholder.svg"}
-                alt="Cover Preview"
-                className="w-full h-full object-cover"
-              />
-              {coverPreview && (
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 rounded-full"
-                  onClick={() => {
-                    setCoverFile(null);
-                    setCoverPreview(null);
-                    setCoverUrl("");
-                  }}
-                  disabled={loading}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
         <Input placeholder="Сайт" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} disabled={loading} />
         <div className="flex gap-2 items-center">
           <Input
@@ -245,6 +217,34 @@ export default function NewModelPage() {
             Пример: от {pricing} {uniqueCurrencies.find(c => c.code === currency)?.symbol}/{periodOptions.find(p => p.value === period)?.label}
           </div>
         )}
+        <div className="space-y-2">
+          <Label htmlFor="coverImage">Изображение обложки</Label>
+          <Input id="coverImage" type="file" accept="image/*" onChange={handleFileChange} disabled={loading} />
+          {(coverPreview || coverUrl) && (
+            <div className="relative w-full aspect-video rounded-md overflow-hidden">
+              <img
+                src={coverPreview || coverUrl || "/placeholder.svg"}
+                alt="Cover Preview"
+                className="w-full h-full object-cover"
+              />
+              {coverPreview && (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 rounded-full"
+                  onClick={() => {
+                    setCoverFile(null);
+                    setCoverPreview(null);
+                    setCoverUrl("");
+                  }}
+                  disabled={loading}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
         {error && <div className="text-red-500 text-sm">{error}</div>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => router.push("/")} disabled={loading}>Отмена</Button>
