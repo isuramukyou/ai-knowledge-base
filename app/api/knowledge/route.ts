@@ -85,15 +85,16 @@ export async function POST(request: NextRequest) {
 
     console.log("Knowledge item created successfully:", item.id)
 
-    // Получение записи с деталями для уведомления
-    const itemWithDetails = await getKnowledgeItemById(item.id)
-    if (itemWithDetails) {
-      // Отправка уведомления в Telegram
-      try {
-        await sendNewKnowledgeItemNotification(itemWithDetails)
-      } catch (error) {
-        console.error("Error sending Telegram notification:", error)
-        // Не прерываем выполнение, если не удалось отправить уведомление
+    // Отправка уведомления в Telegram только если publish_to_chat = true
+    if (body.publish_to_chat !== false) {
+      const itemWithDetails = await getKnowledgeItemById(item.id)
+      if (itemWithDetails) {
+        try {
+          await sendNewKnowledgeItemNotification(itemWithDetails)
+        } catch (error) {
+          console.error("Error sending Telegram notification:", error)
+          // Не прерываем выполнение, если не удалось отправить уведомление
+        }
       }
     }
 

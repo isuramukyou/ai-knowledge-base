@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm"
 import dynamic from "next/dynamic"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Trash2 } from "lucide-react"
 import imageCompression from 'browser-image-compression';
 
@@ -40,6 +41,7 @@ export default function NewKnowledgePage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [publishToChat, setPublishToChat] = useState(true)
 
   useEffect(() => {
     fetch("/api/categories")
@@ -129,6 +131,7 @@ export default function NewKnowledgePage() {
           url: type !== "article" ? url : null,
           cover_url: uploadedCoverUrl,
           category_id: categoryId !== null ? Number(categoryId) : null,
+          publish_to_chat: publishToChat,
         }),
       })
       if (res.ok) {
@@ -222,13 +225,24 @@ export default function NewKnowledgePage() {
           </div>
         )}
         */}
-        {error && <div className="text-red-500 text-sm">{error}</div>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => router.push("/")} disabled={loading}>
-            Отмена
-          </Button>
-          <Button type="submit" disabled={loading}>{loading ? "Сохраняю..." : "Добавить"}</Button>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="publish-to-chat"
+              checked={publishToChat}
+              onCheckedChange={setPublishToChat}
+              disabled={loading}
+            />
+            <Label htmlFor="publish-to-chat">Опубликовать в чат</Label>
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => router.push("/")} disabled={loading}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={loading}>{loading ? "Сохраняю..." : "Добавить"}</Button>
+          </div>
         </div>
+        {error && <div className="text-red-500 text-sm">{error}</div>}
       </form>
     </div>
   )

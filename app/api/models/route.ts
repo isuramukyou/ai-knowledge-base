@@ -71,15 +71,16 @@ export async function POST(request: NextRequest) {
 
     console.log("AI model created successfully:", model.id)
 
-    // Получение модели с деталями для уведомления
-    const modelWithDetails = await getAIModelById(model.id)
-    if (modelWithDetails) {
-      // Отправка уведомления в Telegram
-      try {
-        await sendNewAIModelNotification(modelWithDetails)
-      } catch (error) {
-        console.error("Error sending Telegram notification:", error)
-        // Не прерываем выполнение, если не удалось отправить уведомление
+    // Отправка уведомления в Telegram только если publish_to_chat = true
+    if (body.publish_to_chat !== false) {
+      const modelWithDetails = await getAIModelById(model.id)
+      if (modelWithDetails) {
+        try {
+          await sendNewAIModelNotification(modelWithDetails)
+        } catch (error) {
+          console.error("Error sending Telegram notification:", error)
+          // Не прерываем выполнение, если не удалось отправить уведомление
+        }
       }
     }
 
