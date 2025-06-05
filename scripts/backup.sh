@@ -13,11 +13,7 @@ mkdir -p $BACKUP_DIR
 echo "Создание резервной копии базы данных..."
 
 # Резервная копия PostgreSQL
-docker-compose exec -T postgres pg_dump -U postgres ai_knowledge_base > "${BACKUP_DIR}/${BACKUP_FILE}.sql"
-
-# Резервная копия загруженных файлов
-echo "Создание архива загруженных файлов..."
-tar -czf "${BACKUP_DIR}/${BACKUP_FILE}_uploads.tar.gz" uploads/
+docker compose exec -T postgres pg_dump -U postgres ai_knowledge_base > "${BACKUP_DIR}/${BACKUP_FILE}.sql"
 
 # Резервная копия конфигурации
 echo "Создание резервной копии конфигурации..."
@@ -26,8 +22,9 @@ cp docker-compose.yml "${BACKUP_DIR}/${BACKUP_FILE}_docker-compose.yml"
 
 echo "Резервная копия создана:"
 echo "- База данных: ${BACKUP_DIR}/${BACKUP_FILE}.sql"
-echo "- Файлы: ${BACKUP_DIR}/${BACKUP_FILE}_uploads.tar.gz"
 echo "- Конфигурация: ${BACKUP_DIR}/${BACKUP_FILE}.env"
+echo ""
+echo "📝 Примечание: Медиа-файлы сохраняются в S3 и не требуют локального бэкапа"
 
 # Удаление старых резервных копий (старше 30 дней)
 find $BACKUP_DIR -name "ai_knowledge_backup_*" -mtime +30 -delete

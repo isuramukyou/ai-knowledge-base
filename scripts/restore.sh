@@ -22,30 +22,24 @@ fi
 
 # Остановка приложения
 echo "Остановка приложения..."
-docker-compose down
+docker compose down
 
 # Восстановление базы данных
 echo "Восстановление базы данных..."
-docker-compose up -d postgres redis
+docker compose up -d postgres redis
 sleep 10
 
 # Очистка существующей базы данных
-docker-compose exec postgres psql -U postgres -c "DROP DATABASE IF EXISTS ai_knowledge_base;"
-docker-compose exec postgres psql -U postgres -c "CREATE DATABASE ai_knowledge_base;"
+docker compose exec postgres psql -U postgres -c "DROP DATABASE IF EXISTS ai_knowledge_base;"
+docker compose exec postgres psql -U postgres -c "CREATE DATABASE ai_knowledge_base;"
 
 # Восстановление данных
-docker-compose exec -T postgres psql -U postgres ai_knowledge_base < "${BACKUP_DIR}/${BACKUP_PREFIX}.sql"
-
-# Восстановление файлов (если существует архив)
-if [ -f "${BACKUP_DIR}/${BACKUP_PREFIX}_uploads.tar.gz" ]; then
-    echo "Восстановление загруженных файлов..."
-    rm -rf uploads/
-    tar -xzf "${BACKUP_DIR}/${BACKUP_PREFIX}_uploads.tar.gz"
-fi
+docker compose exec -T postgres psql -U postgres ai_knowledge_base < "${BACKUP_DIR}/${BACKUP_PREFIX}.sql"
 
 # Запуск приложения
 echo "Запуск приложения..."
-docker-compose up -d
+docker compose up -d
 
 echo "Восстановление завершено!"
+echo "📝 Примечание: Медиа-файлы хранятся в S3 и не восстанавливаются локально"
 echo "Проверьте работу приложения: http://localhost:3000"

@@ -181,7 +181,7 @@ export default function NewModelPage() {
             ))}
           </SelectContent>
         </Select>
-        <Input placeholder="Сайт" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} disabled={loading} />
+        <Input placeholder="Сайт" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} required disabled={loading} />
         <div className="flex gap-2 items-center">
           <Input
             type="number"
