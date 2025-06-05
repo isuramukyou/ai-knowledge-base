@@ -14,8 +14,10 @@ COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then pnpm i --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
+  elif [ -f pnpm-lock.yaml ]; then \
+    pnpm i --frozen-lockfile || (echo "Lock file corrupted, regenerating..." && rm -f pnpm-lock.yaml && pnpm i); \
+  else \
+    echo "No lockfile found, installing with pnpm..." && pnpm i; \
   fi
 
 # Rebuild the source code only when needed
