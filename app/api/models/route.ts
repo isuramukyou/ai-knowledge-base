@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Проверка авторизации
-    const telegramId = request.headers.get("x-telegram-id") || localStorage?.getItem("telegram_id")
+    const telegramId = request.headers.get("x-telegram-id") || request.cookies.get("telegram_id")?.value
     if (!telegramId) {
       return NextResponse.json({ error: "Unauthorized: Telegram ID required" }, { status: 401 })
     }

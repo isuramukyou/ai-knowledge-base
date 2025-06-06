@@ -79,7 +79,7 @@ export default function AdminPageClient() {
       params.set("limit", "10")
       params.set("include_posts_count", "true")
 
-      const telegramId = localStorage.getItem("telegram_id")
+      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
       const response = await fetch(`/api/admin/users?${params.toString()}`, {
         headers: {
           "x-telegram-id": telegramId || "",
@@ -120,7 +120,7 @@ export default function AdminPageClient() {
   const fetchStats = async () => {
     setIsLoading(true)
     try {
-      const telegramId = localStorage.getItem("telegram_id")
+      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
       // Получаем количество моделей
       const modelsRes = await fetch(`/api/models?page=1&limit=1`)
       const modelsData = await modelsRes.json()
@@ -156,7 +156,7 @@ export default function AdminPageClient() {
   // Блокировка/разблокировка пользователя
   const toggleUserBlock = async (userId: number, isBlocked: boolean) => {
     try {
-      const telegramId = localStorage.getItem("telegram_id")
+      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
       const response = await fetch(`/api/admin/users/${userId}/block`, {
         method: "POST",
         headers: {
@@ -180,7 +180,7 @@ export default function AdminPageClient() {
   const addCategory = async () => {
     if (newCategory.name.trim()) {
       try {
-        const telegramId = localStorage.getItem("telegram_id")
+        const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
         const response = await fetch("/api/categories", {
           method: "POST",
           headers: {
@@ -206,7 +206,7 @@ export default function AdminPageClient() {
   // Редактирование категории
   const updateCategory = async (id: number, name: string, color: string) => {
     try {
-      const telegramId = localStorage.getItem("telegram_id")
+      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
       const response = await fetch(`/api/categories/${id}`, {
         method: "PUT",
         headers: {
@@ -231,7 +231,7 @@ export default function AdminPageClient() {
   // Удаление категории
   const deleteCategory = async (categoryId: number) => {
     try {
-      const telegramId = localStorage.getItem("telegram_id")
+      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
       const response = await fetch(`/api/categories/${categoryId}`, {
         method: "DELETE",
         headers: {

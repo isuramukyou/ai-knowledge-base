@@ -117,18 +117,3 @@ CREATE TRIGGER update_ai_models_updated_at BEFORE UPDATE ON ai_models
 DROP TRIGGER IF EXISTS update_knowledge_items_updated_at ON knowledge_items;
 CREATE TRIGGER update_knowledge_items_updated_at BEFORE UPDATE ON knowledge_items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Add some sample data for testing (optional)
--- This will only run if the tables are empty
-DO $$
-BEGIN
-    -- Check if we have any users (excluding potential admin)
-    IF NOT EXISTS (SELECT 1 FROM users WHERE is_admin = false) THEN
-        -- Insert sample categories if they don't exist
-        INSERT INTO categories (name, color) VALUES
-        ('Тестовая категория', '#ff6b6b')
-        ON CONFLICT DO NOTHING;
-        
-        -- Note: Sample users and content will be created when users first interact with the app
-    END IF;
-END $$;
