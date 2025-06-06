@@ -1,5 +1,5 @@
 {
-  "name": "my-v0-project",
+  "name": "ai-knowledge-base",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -39,6 +39,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/uuid": "^10.0.0",
     "@uiw/react-markdown-preview": "^5.1.4",
     "@uiw/react-md-editor": "^4.0.7",
@@ -53,6 +54,7 @@
     "embla-carousel-react": "8.5.1",
     "framer-motion": "^12.15.0",
     "input-otp": "1.4.1",
+    "jsonwebtoken": "^9.0.2",
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
@@ -79,6 +81,7 @@
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^22",
+    "@types/pg": "^8.15.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8",

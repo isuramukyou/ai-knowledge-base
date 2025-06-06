@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getCategoryById, updateCategory, deleteCategory } from "@/lib/models/category"
-import { getUserByTelegramId } from "@/lib/models/user"
+import { requireAdmin } from "@/lib/auth"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -23,15 +23,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const id = Number.parseInt(params.id)
     const body = await request.json()
 
-    // Проверка авторизации
-    const telegramId = request.headers.get("x-telegram-id")
-    if (!telegramId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const user = await getUserByTelegramId(telegramId)
-    if (!user || !user.is_admin) {
-      return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 })
+    // Проверяем админские права
+    const { user, error } = await requireAdmin(request)
+    if (error || !user) {
+      return NextResponse.json({ error: error || "Admin access required" }, { status: 403 })
     }
 
     // Валидация данных
@@ -57,15 +52,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const id = Number.parseInt(params.id)
 
-    // Проверка авторизации
-    const telegramId = request.headers.get("x-telegram-id")
-    if (!telegramId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const user = await getUserByTelegramId(telegramId)
-    if (!user || !user.is_admin) {
-      return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 })
+    // Проверяем админские права
+    const { user, error } = await requireAdmin(request)
+    if (error || !user) {
+      return NextResponse.json({ error: error || "Admin access required" }, { status: 403 })
     }
 
     try {

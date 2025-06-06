@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createUser, getUserByTelegramId, updateUser } from "@/lib/models/user"
 import { createHash, createHmac } from "crypto"
+import { createJWTToken, setSecureCookies } from "@/lib/auth"
 
 // Функция для проверки данных авторизации Telegram WebApp
 function verifyTelegramWebAppData(initData: string): boolean {
@@ -105,8 +106,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Your account has been blocked" }, { status: 403 })
     }
 
-    // Генерируем простой токен (в продакшене должен быть JWT)
-    const token = `telegram_${dbUser.telegram_id}_${Date.now()}`
+    // Генерируем JWT токен
+    const token = createJWTToken({
+      userId: dbUser.id,
+      telegramId: dbUser.telegram_id,
+      isAdmin: dbUser.is_admin
+    })
+
+    // Устанавливаем безопасные cookies
+    await setSecureCookies(dbUser.telegram_id, initData || '', token)
 
     console.log("Authentication successful for user:", dbUser.id)
 

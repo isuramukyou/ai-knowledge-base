@@ -121,9 +121,12 @@ export default function HomePage() {
         const data = await response.json()
         // Update user state with server response
         setUser(data.user)
-        // Store token for subsequent requests
+        // Store token for subsequent requests (cookies are set on server-side)
         localStorage.setItem("telegram_id", telegramUser.id.toString())
         localStorage.setItem("auth_token", data.token)
+        
+        // Для дополнительной безопасности храним данные авторизации в localStorage как fallback
+        localStorage.setItem("telegram_init_data", initData || "")
       } else {
         console.error("Authentication failed:", await response.text())
       }

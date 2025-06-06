@@ -3,6 +3,12 @@ import { Pool } from "pg"
 // Создаем пул соединений с базой данных
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Отключаем автоматическое определение SSL для совместимости
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // Оптимизация для серверной среды
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 })
 
 // Функция для выполнения SQL запросов
