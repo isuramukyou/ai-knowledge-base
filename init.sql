@@ -65,14 +65,20 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
 -- Insert default categories only if not exist
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Языковые модели') THEN
+  IF NOT EXISTS (SELECT 1 FROM categories WHERE name = 'Другое') THEN
     INSERT INTO categories (name, color) VALUES
-      ('Языковые модели', '#3b82f6'),
-      ('Генерация изображений', '#10b981'),
-      ('Дизайн', '#f59e0b'),
-      ('Программирование', '#8b5cf6'),
+      ('Другое', '#3b82f6'),
+      ('Контент', '#10b981'),
+      ('Текст', '#f59e0b'),
+      ('Перевод', '#8b5cf6'),
       ('Обучение', '#ef4444'),
-      ('Аналитика', '#06b6d4');
+      ('Программирование', '#06b6d4'),
+      ('Генерация', '#06b6d4'),
+      ('Дизайн', '#06b6d4'),
+      ('Игры', '#06b6d4'),
+      ('Маркетинг', '#06b6d4'),
+      ('Музыка', '#06b6d4'),
+      ('Наука', '#06b6d4');
   END IF;
 END $$;
 
