@@ -45,8 +45,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Проверка авторизации
-    const telegramId = request.headers.get("x-telegram-id") || request.cookies.get("telegram_id")?.value
+    const telegramIdFromHeader = request.headers.get("x-telegram-id")
+    const telegramIdFromCookie = request.cookies.get("telegram_id")?.value
+    const telegramId = telegramIdFromHeader || telegramIdFromCookie
+    
+    console.log("Auth check:", {
+      header: telegramIdFromHeader,
+      cookie: telegramIdFromCookie,
+      final: telegramId,
+      hasHeader: !!telegramIdFromHeader,
+      hasCookie: !!telegramIdFromCookie
+    })
+    
     if (!telegramId) {
+      console.log("No telegram_id found in headers or cookies")
       return NextResponse.json({ error: "Unauthorized: Telegram ID required" }, { status: 401 })
     }
 

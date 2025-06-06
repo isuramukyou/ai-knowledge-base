@@ -117,11 +117,20 @@ export default function NewKnowledgePage() {
 
     try {
       const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
+      
+      console.log("Creating knowledge item with telegram_id:", telegramId)
+      
+      if (!telegramId) {
+        setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
+        setLoading(false)
+        return
+      }
+      
       const res = await fetch("/api/knowledge", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(telegramId ? { "x-telegram-id": telegramId } : {}),
+          "x-telegram-id": telegramId,
         },
         body: JSON.stringify({
           title,
@@ -134,12 +143,21 @@ export default function NewKnowledgePage() {
           publish_to_chat: publishToChat,
         }),
       })
+      
       if (res.ok) {
         router.push("/") // Redirect to home or the new item's page
       } else {
-        setError("Ошибка при создании записи")
+        const errorData = await res.text()
+        console.error("API Error:", res.status, errorData)
+        
+        if (res.status === 401) {
+          setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
+        } else {
+          setError(`Ошибка при создании записи: ${errorData}`)
+        }
       }
     } catch (e: any) {
+      console.error("Network error:", e)
       setError("Ошибка сети: " + e.message)
     } finally {
       setLoading(false)

@@ -73,9 +73,20 @@ declare global {
 
 // Функция для получения данных пользователя из Telegram WebApp
 export function getTelegramUser(): TelegramUser | null {
-  if (typeof window !== "undefined" && window.Telegram?.WebApp?.initDataUnsafe?.user) {
-    return window.Telegram.WebApp.initDataUnsafe.user
+  if (typeof window !== "undefined") {
+    console.log("Checking Telegram WebApp data:", {
+      hasTelegram: !!window.Telegram,
+      hasWebApp: !!window.Telegram?.WebApp,
+      hasInitDataUnsafe: !!window.Telegram?.WebApp?.initDataUnsafe,
+      hasUser: !!window.Telegram?.WebApp?.initDataUnsafe?.user,
+      user: window.Telegram?.WebApp?.initDataUnsafe?.user
+    })
+    
+    if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+      return window.Telegram.WebApp.initDataUnsafe.user
+    }
   }
+  
   // Мок-данные для разработки
   if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
     // Создаем мок-объект Telegram WebApp

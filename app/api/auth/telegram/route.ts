@@ -117,6 +117,11 @@ export async function POST(request: NextRequest) {
     await setSecureCookies(dbUser.telegram_id, initData || '', token)
 
     console.log("Authentication successful for user:", dbUser.id)
+    console.log("Cookies set:", {
+      telegram_id: dbUser.telegram_id,
+      has_initData: !!initData,
+      environment: process.env.NODE_ENV
+    })
 
     return NextResponse.json({
       user: {

@@ -72,33 +72,86 @@ export default function HomePage() {
 
   // Инициализация Telegram WebApp и получение данных пользователя
   useEffect(() => {
-    const isInTelegramWebApp = isTelegramWebApp()
-    setIsWebApp(isInTelegramWebApp)
+    const initializeTelegram = async () => {
+      console.log("Initializing Telegram WebApp...")
+      
+      // Проверяем, находимся ли мы в Telegram WebApp
+      const isInTelegramWebApp = isTelegramWebApp()
+      setIsWebApp(isInTelegramWebApp)
+      console.log("Is in Telegram WebApp:", isInTelegramWebApp)
 
-    if (isInTelegramWebApp) {
-      // Получаем данные пользователя из Telegram WebApp
-      const telegramUser = getTelegramUser()
+      if (isInTelegramWebApp) {
+        // Сообщаем Telegram, что WebApp готов
+        if (window.Telegram?.WebApp?.ready) {
+          window.Telegram.WebApp.ready()
+          console.log("Telegram WebApp ready() called")
+        }
+        
+        // Даем время Telegram WebApp для полной инициализации
+        let attempts = 0
+        const maxAttempts = 10
+        
+        const tryGetUser = () => {
+          attempts++
+          console.log(`Attempt ${attempts} to get Telegram user...`)
+          
+          const telegramUser = getTelegramUser()
+          
+          if (telegramUser) {
+            console.log("Telegram user found:", telegramUser)
+            
+            // Преобразуем данные пользователя Telegram в формат нашего приложения
+            setUser({
+              telegram_id: telegramUser.id.toString(),
+              first_name: telegramUser.first_name,
+              last_name: telegramUser.last_name || null,
+              username: telegramUser.username || null,
+              avatar_url: telegramUser.photo_url || null,
+            })
 
-      if (telegramUser) {
-        // Преобразуем данные пользователя Telegram в формат нашего приложения
-        setUser({
-          telegram_id: telegramUser.id.toString(),
-          first_name: telegramUser.first_name,
-          last_name: telegramUser.last_name || null,
-          username: telegramUser.username || null,
-          avatar_url: telegramUser.photo_url || null,
-        })
+            // Отправляем данные на сервер для авторизации
+            authenticateUser(telegramUser)
+            return true
+          } else if (attempts < maxAttempts) {
+            console.log("No user data yet, retrying in 500ms...")
+            setTimeout(tryGetUser, 500)
+            return false
+          } else {
+            console.error("Failed to get Telegram user data after", maxAttempts, "attempts")
+            return false
+          }
+        }
 
-        // Отправляем данные на сервер для авторизации
-        authenticateUser(telegramUser)
-      }
+        // Начинаем попытки получения данных пользователя
+        tryGetUser()
 
-      // Устанавливаем тему в соответствии с темой Telegram
-      const colorScheme = getTelegramColorScheme()
-      if (colorScheme) {
-        setTheme(colorScheme)
-      }
+        // Устанавливаем тему в соответствии с темой Telegram
+        const colorScheme = getTelegramColorScheme()
+        if (colorScheme) {
+          setTheme(colorScheme)
+        }
+             } else {
+         console.log("Not in Telegram WebApp, checking localStorage for existing auth...")
+         // Если не в Telegram WebApp, попробуем восстановить данные из localStorage
+         const existingTelegramId = localStorage.getItem("telegram_id")
+         if (existingTelegramId) {
+           console.log("Found existing telegram_id in localStorage:", existingTelegramId)
+           // Восстанавливаем базовые данные пользователя
+           setUser({
+             telegram_id: existingTelegramId,
+             first_name: "User",
+             last_name: null,
+             username: null,
+             avatar_url: null,
+           })
+         } else {
+           console.log("No existing auth found, showing manual auth option")
+           // В продакшене можем показать инструкцию по перезапуску через Telegram
+         }
+       }
     }
+
+    initializeTelegram()
   }, [setTheme])
 
   // Функция для авторизации пользователя на сервере

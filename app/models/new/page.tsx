@@ -126,11 +126,20 @@ export default function NewModelPage() {
 
     try {
       const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
+      
+      console.log("Creating model with telegram_id:", telegramId)
+      
+      if (!telegramId) {
+        setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
+        setLoading(false)
+        return
+      }
+      
       const res = await fetch("/api/models", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(telegramId ? { "x-telegram-id": telegramId } : {}),
+          "x-telegram-id": telegramId,
         },
         body: JSON.stringify({
           name,
@@ -142,12 +151,21 @@ export default function NewModelPage() {
           publish_to_chat: publishToChat,
         }),
       })
+      
       if (res.ok) {
         router.push("/")
       } else {
-        setError("Ошибка при создании модели")
+        const errorData = await res.text()
+        console.error("API Error:", res.status, errorData)
+        
+        if (res.status === 401) {
+          setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
+        } else {
+          setError(`Ошибка при создании модели: ${errorData}`)
+        }
       }
     } catch (e) {
+      console.error("Network error:", e)
       setError("Ошибка сети")
     } finally {
       setLoading(false)
