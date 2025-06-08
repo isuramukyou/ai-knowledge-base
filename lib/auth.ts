@@ -99,11 +99,13 @@ export async function setSecureCookies(telegramId: string, initData: string, tok
   
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: true, // ВСЕГДА true для Telegram Mini App (cross-origin iframe)
     sameSite: 'none' as const, // КРИТИЧНО для Telegram Mini App (iframe/cross-origin)
     maxAge: 7 * 24 * 60 * 60, // 7 дней
     path: '/'
   }
+
+  console.log('Setting cookies with options:', cookieOptions)
 
   cookieStore.set('telegram_id', telegramId, cookieOptions)
   cookieStore.set('telegram_init_data', initData, cookieOptions)

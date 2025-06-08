@@ -55,25 +55,57 @@ export async function middleware(request: NextRequest) {
   // Проверяем админские роуты
   if (request.nextUrl.pathname.startsWith('/admin')) {
     try {
+      console.log("=== ADMIN MIDDLEWARE DEBUG ===")
+      console.log("Request URL:", request.nextUrl.pathname)
+      
       // В Telegram Mini App в основном используем localStorage -> headers
       // Cookies могут не работать в iframe
-      const telegramId = request.headers.get('x-telegram-id') || 
-                        request.cookies.get('telegram_id')?.value
+      const telegramIdFromHeader = request.headers.get('x-telegram-id')
+      const telegramIdFromCookie = request.cookies.get('telegram_id')?.value
+      const telegramId = telegramIdFromHeader || telegramIdFromCookie
+
+      console.log("Auth check:", {
+        header: telegramIdFromHeader,
+        cookie: telegramIdFromCookie,
+        final: telegramId,
+        hasHeader: !!telegramIdFromHeader,
+        hasCookie: !!telegramIdFromCookie
+      })
 
       // В development режиме разрешаем доступ для тестирования
       const isDevelopment = process.env.NODE_ENV === 'development'
+      console.log("Environment:", process.env.NODE_ENV)
+      console.log("Is development:", isDevelopment)
       
       if (!telegramId && !isDevelopment) {
-        console.log('No telegram_id found in production, redirecting to home')
+        console.log('❌ No telegram_id found in production, redirecting to home')
         return NextResponse.redirect(new URL('/', request.url))
       }
 
       // Если есть telegram_id, проверяем права админа
       if (telegramId) {
+        console.log("Checking user permissions for telegram_id:", telegramId)
         const user = await getUserByTelegramId(telegramId)
         
-        if (!user || !user.is_admin) {
-          console.log('User is not admin, redirecting to home')
+        if (!user) {
+          console.log('❌ User not found in database, redirecting to home')
+          return NextResponse.redirect(new URL('/', request.url))
+        }
+
+        console.log("User found:", {
+          id: user.id,
+          telegram_id: user.telegram_id,
+          is_admin: user.is_admin,
+          is_blocked: user.is_blocked
+        })
+        
+        if (!user.is_admin) {
+          console.log('❌ User is not admin, redirecting to home')
+          return NextResponse.redirect(new URL('/', request.url))
+        }
+
+        if (user.is_blocked) {
+          console.log('❌ User is blocked, redirecting to home')
           return NextResponse.redirect(new URL('/', request.url))
         }
 
@@ -82,19 +114,23 @@ export async function middleware(request: NextRequest) {
         response.headers.set('x-user-id', user.id.toString())
         response.headers.set('x-user-admin', 'true')
         
+        console.log("✅ Admin access granted for user:", user.id)
+        console.log("=== END ADMIN MIDDLEWARE DEBUG ===")
         return response
       }
 
       // В development без telegram_id тоже разрешаем
       if (isDevelopment) {
-        console.log('Development mode: allowing admin access without telegram_id')
+        console.log('⚠️ Development mode: allowing admin access without telegram_id')
+        console.log("=== END ADMIN MIDDLEWARE DEBUG ===")
         return NextResponse.next()
       }
 
     } catch (error) {
-      console.error('Middleware error:', error)
+      console.error('❌ Middleware error:', error)
       // В случае ошибки в development - разрешаем, в production - блокируем
       if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ Development mode: allowing access despite error')
         return NextResponse.next()
       }
       return NextResponse.redirect(new URL('/', request.url))

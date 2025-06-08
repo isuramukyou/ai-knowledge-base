@@ -17,6 +17,7 @@ import type { AIModelWithDetails } from "@/lib/models/ai-model"
 import type { KnowledgeItemWithDetails } from "@/lib/models/knowledge-item"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { useAuth } from "@/app/layout"
 
 interface Author {
   first_name: string
@@ -33,25 +34,25 @@ interface PaginationData {
 }
 
 export default function HomePage() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const { theme, setTheme } = useTheme()
   const searchParams = useSearchParams()
   const router = useRouter()
 
   const [selectedModel, setSelectedModel] = useState<AIModelWithDetails | null>(null)
   const [selectedKnowledge, setSelectedKnowledge] = useState<KnowledgeItemWithDetails | null>(null)
-  const [user, setUser] = useState<any | null>(null)
 
   const [aiModels, setAiModels] = useState<AIModelWithDetails[]>([])
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItemWithDetails[]>([])
   const [modelsPagination, setModelsPagination] = useState<PaginationData>({
     page: 1,
-    limit: 10,
+    limit: 9,
     total: 0,
     totalPages: 0,
   })
   const [knowledgePagination, setKnowledgePagination] = useState<PaginationData>({
     page: 1,
-    limit: 10,
+    limit: 9,
     total: 0,
     totalPages: 0,
   })
@@ -66,167 +67,25 @@ export default function HomePage() {
 
   // Получаем параметры из URL
   const page = Number.parseInt(searchParams.get("page") || "1")
-  const search = searchParams.get("search") || undefined
-  const category = searchParams.get("category") || undefined
-  const type = searchParams.get("type") || undefined
+  const search = searchParams.get("search") || ""
+  const category = searchParams.get("category") || ""
+  const type = searchParams.get("type") || ""
 
   // Инициализация Telegram WebApp и получение данных пользователя
   useEffect(() => {
-        const initializeTelegram = async () => {
-      console.log("Initializing Telegram WebApp...")
-      
-      // Проверяем, находимся ли мы в Telegram WebApp
-      const isInTelegramWebApp = isTelegramWebApp()
-      setIsWebApp(isInTelegramWebApp)
-      console.log("Is in Telegram WebApp:", isInTelegramWebApp)
-
-      if (isInTelegramWebApp) {
-        // Сообщаем Telegram, что WebApp готов
-        if (window.Telegram?.WebApp?.ready) {
-          window.Telegram.WebApp.ready()
-          console.log("Telegram WebApp ready() called")
-        }
-        
-        // Даем время Telegram WebApp для полной инициализации
-        let attempts = 0
-        const maxAttempts = 10
-        
-        const tryGetUser = () => {
-          attempts++
-          console.log(`Attempt ${attempts} to get Telegram user...`)
-          
-          const telegramUser = getTelegramUser()
-          
-          if (telegramUser) {
-            console.log("Telegram user found:", telegramUser)
-            
-            // Преобразуем данные пользователя Telegram в формат нашего приложения
-            setUser({
-              telegram_id: telegramUser.id.toString(),
-              first_name: telegramUser.first_name,
-              last_name: telegramUser.last_name || null,
-              username: telegramUser.username || null,
-              avatar_url: telegramUser.photo_url || null,
-            })
-
-            // Отправляем данные на сервер для авторизации
-            authenticateUser(telegramUser)
-            return true
-          } else if (attempts < maxAttempts) {
-            console.log("No user data yet, retrying in 500ms...")
-            setTimeout(tryGetUser, 500)
-            return false
-          } else {
-            console.error("Failed to get Telegram user data after", maxAttempts, "attempts")
-            return false
-          }
-        }
-
-        // Начинаем попытки получения данных пользователя
-        tryGetUser()
-
-        // Устанавливаем тему в соответствии с темой Telegram
-        const colorScheme = getTelegramColorScheme()
-        if (colorScheme) {
-          setTheme(colorScheme)
-        }
-      } else {
-        console.log("Not in Telegram WebApp, checking localStorage for existing auth...")
-        // Если не в Telegram WebApp, попробуем восстановить данные из localStorage
-        const existingTelegramId = localStorage.getItem("telegram_id")
-        const existingToken = localStorage.getItem("auth_token")
-        
-        if (existingTelegramId && existingToken) {
-          console.log("Found existing auth in localStorage:", existingTelegramId)
-          // В режиме разработки или если есть валидные данные - создаем пользователя
-          const isDev = process.env.NODE_ENV === "development"
-          if (isDev) {
-            // В режиме разработки получаем пользователя из мока
-            const mockUser = getTelegramUser()
-            if (mockUser) {
-              setUser({
-                telegram_id: mockUser.id.toString(),
-                first_name: mockUser.first_name,
-                last_name: mockUser.last_name || null,
-                username: mockUser.username || null,
-                avatar_url: mockUser.photo_url || null,
-              })
-              // Аутентифицируем мок-пользователя
-              authenticateUser(mockUser)
-            }
-          } else {
-            // В продакшене восстанавливаем базовые данные
-            setUser({
-              telegram_id: existingTelegramId,
-              first_name: "User",
-              last_name: null,
-              username: null,
-              avatar_url: null,
-            })
-          }
-        } else {
-          console.log("No existing auth found")
-          // В режиме разработки все равно попробуем инициализировать мок-пользователя
-          const isDev = process.env.NODE_ENV === "development"
-          if (isDev) {
-            const mockUser = getTelegramUser()
-            if (mockUser) {
-              setUser({
-                telegram_id: mockUser.id.toString(),
-                first_name: mockUser.first_name,
-                last_name: mockUser.last_name || null,
-                username: mockUser.username || null,
-                avatar_url: mockUser.photo_url || null,
-              })
-              authenticateUser(mockUser)
-            }
-          }
-        }
-      }
+    setIsWebApp(isTelegramWebApp())
+    
+    // Set initial theme based on Telegram or system preference
+    const telegramTheme = getTelegramColorScheme()
+    if (telegramTheme) {
+      setTheme(telegramTheme)
+      document.documentElement.classList.toggle("dark", telegramTheme === "dark")
+    } else {
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      setTheme(systemTheme)
+      document.documentElement.classList.toggle("dark", systemTheme === "dark")
     }
-
-    initializeTelegram()
-  }, [setTheme])
-
-  // Функция для авторизации пользователя на сервере
-  const authenticateUser = async (telegramUser: any) => {
-    try {
-      const initData = getTelegramInitData()
-
-      const response = await fetch("/api/auth/telegram", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          initData,
-          user: telegramUser,
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        // Update user state with server response
-        setUser(data.user)
-        // Store token for subsequent requests (cookies are set on server-side)
-        localStorage.setItem("telegram_id", telegramUser.id.toString())
-        localStorage.setItem("auth_token", data.token)
-        
-        // Для дополнительной безопасности храним данные авторизации в localStorage как fallback
-        localStorage.setItem("telegram_init_data", initData || "")
-        
-        console.log("Auth data stored in localStorage:", {
-          telegram_id: telegramUser.id.toString(),
-          has_token: !!data.token,
-          has_initData: !!initData
-        })
-      } else {
-        console.error("Authentication failed:", await response.text())
-      }
-    } catch (error) {
-      console.error("Ошибка авторизации:", error)
-    }
-  }
+  }, [])
 
   // Загрузка данных при изменении параметров
   useEffect(() => {
@@ -621,7 +480,7 @@ export default function HomePage() {
                   </Button>
                 )}
                 {/* Кнопки редактирования/удаления */}
-                {(user && (user.is_admin || user.telegram_id == selectedModel.author_username || user.telegram_id == selectedModel.author_id)) && (
+                {(user && (user.is_admin || user.telegram_id === selectedModel.author_username || user.telegram_id === selectedModel.author_id?.toString())) && (
                   <div className="flex gap-2 mt-4">
                     <Button variant="ghost" size="sm" onClick={() => router.push(`/models/${selectedModel.id}/edit`)}>
                       <Edit className="w-4 h-4" />
@@ -740,7 +599,7 @@ export default function HomePage() {
                 </div>
               ) : null}
               {/* Edit and Delete Buttons (Optional, based on permissions) */}
-              {(user && (user.is_admin || user.telegram_id === selectedKnowledge.author_username || user.telegram_id === selectedKnowledge.author_id)) && (
+              {(user && (user.is_admin || user.telegram_id === selectedKnowledge.author_username || user.telegram_id === selectedKnowledge.author_id?.toString())) && (
                 <div className="flex gap-2 mt-4">
                    <Button variant="ghost" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
                      <Edit className="w-4 h-4" />

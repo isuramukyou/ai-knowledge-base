@@ -48,15 +48,26 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const { initData, user } = data
 
+    console.log("=== TELEGRAM AUTH DEBUG ===")
     console.log("Received authentication request for user:", user?.id)
+    console.log("InitData present:", !!initData)
+    console.log("InitData length:", initData?.length || 0)
+    console.log("User data:", {
+      id: user?.id,
+      username: user?.username,
+      first_name: user?.first_name
+    })
 
     // В режиме разработки можем пропустить проверку initData
     const isDevelopment = process.env.NODE_ENV === "development"
+    console.log("Environment:", process.env.NODE_ENV)
+    console.log("Is development:", isDevelopment)
 
     // В production проверяем подпись Telegram, но только если initData присутствует
     if (!isDevelopment && initData) {
+      console.log("Verifying Telegram signature...")
       if (!verifyTelegramWebAppData(initData)) {
-        console.log("Invalid Telegram signature for user:", user?.id)
+        console.log("❌ Invalid Telegram signature for user:", user?.id)
         return NextResponse.json({ error: "Invalid authentication data" }, { status: 401 })
       }
 
@@ -64,12 +75,16 @@ export async function POST(request: NextRequest) {
       const authDate = Number.parseInt(new URLSearchParams(initData).get("auth_date") || "0") * 1000
       const now = Date.now()
       if (now - authDate > 86400000) {
-        console.log("Expired auth data for user:", user?.id)
+        console.log("❌ Expired auth data for user:", user?.id)
         return NextResponse.json({ error: "Authentication data expired" }, { status: 401 })
       }
+      console.log("✅ Telegram signature verified")
+    } else {
+      console.log("⚠️ Skipping signature verification (development mode or no initData)")
     }
 
     if (!user || !user.id) {
+      console.log("❌ User data is missing")
       return NextResponse.json({ error: "User data is missing" }, { status: 400 })
     }
 
@@ -81,6 +96,11 @@ export async function POST(request: NextRequest) {
 
       // Проверка, является ли пользователь администратором
       const isAdmin = user.id.toString() === process.env.ADMIN_TELEGRAM_ID
+      console.log("Admin check:", {
+        userId: user.id.toString(),
+        adminId: process.env.ADMIN_TELEGRAM_ID,
+        isAdmin
+      })
 
       dbUser = await createUser({
         telegram_id: user.id.toString(),
@@ -91,7 +111,7 @@ export async function POST(request: NextRequest) {
         is_admin: isAdmin,
       })
 
-      console.log("User created successfully:", dbUser.id)
+      console.log("✅ User created successfully:", dbUser.id)
     } else {
       console.log("User found, updating data:", dbUser.id)
 
@@ -106,6 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (dbUser.is_blocked) {
+      console.log("❌ User is blocked:", dbUser.id)
       return NextResponse.json({ error: "Your account has been blocked" }, { status: 403 })
     }
 
@@ -116,15 +137,19 @@ export async function POST(request: NextRequest) {
       isAdmin: dbUser.is_admin
     })
 
+    console.log("Generated JWT token for user:", dbUser.id)
+
     // Устанавливаем безопасные cookies
     await setSecureCookies(dbUser.telegram_id, initData || '', token)
 
-    console.log("Authentication successful for user:", dbUser.id)
-    console.log("Cookies set:", {
+    console.log("✅ Authentication successful for user:", dbUser.id)
+    console.log("Final user data:", {
+      id: dbUser.id,
       telegram_id: dbUser.telegram_id,
-      has_initData: !!initData,
-      environment: process.env.NODE_ENV
+      is_admin: dbUser.is_admin,
+      is_blocked: dbUser.is_blocked
     })
+    console.log("=== END TELEGRAM AUTH DEBUG ===")
 
     return NextResponse.json({
       user: {
@@ -140,7 +165,7 @@ export async function POST(request: NextRequest) {
       token,
     })
   } catch (error) {
-    console.error("Error during Telegram authentication:", error)
+    console.error("❌ Error during Telegram authentication:", error)
     return NextResponse.json(
       {
         error: "Authentication failed",
