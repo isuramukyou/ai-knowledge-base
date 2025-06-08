@@ -1,48 +1,75 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createUser, getUserByTelegramId, updateUser } from "@/lib/models/user"
-import { createHash, createHmac } from "crypto"
+import { createHmac } from "crypto"
 import { createJWTToken, setSecureCookies } from "@/lib/auth"
 
-// Функция для проверки данных авторизации Telegram WebApp
+// -------------------------------------------------------------
+// Telegram Mini App auth helper
+// -------------------------------------------------------------
+// Spec: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+// secret_key = HMAC_SHA256(<bot_token>, "WebAppData")
+// hash       = hex( HMAC_SHA256(data_check_string, secret_key) )
+// data_check_string = all fields except hash & signature, sorted alphabetically,
+//                     joined with "\n" in key=value form (values *exactly* as received)
+// -------------------------------------------------------------
+
 function verifyTelegramWebAppData(initData: string): boolean {
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN
     if (!botToken) {
-      console.error("TELEGRAM_BOT_TOKEN is not defined")
+      console.error("❌ ROUTE: TELEGRAM_BOT_TOKEN is not defined")
       return false
     }
 
-    // Парсим initData
-    const params = new URLSearchParams(initData)
-    const hash = params.get("hash")
-    if (!hash) {
-      console.error("No hash found in initData")
+    console.log("🔍 ROUTE: Starting Telegram signature verification…")
+    console.log("🔑 ROUTE: Bot token length:", botToken.length)
+    console.log("🔍 ROUTE: RAW initData:", initData)
+
+    // 1. Extract hash value *before* any parsing to avoid accidental decoding
+    const hashMatch = initData.match(/(?:^|&)hash=([^&]*)/)
+    if (!hashMatch) {
+      console.error("❌ ROUTE: No hash field found in initData")
       return false
     }
+    const hash = hashMatch[1]
+    console.log("📝 ROUTE: Extracted hash:", hash)
 
-    // Удаляем hash из проверяемых данных
-    params.delete("hash")
+    // 2. Build data_check_string: keep original encoding, drop hash & signature, sort by key
+    const pairs = initData
+      .split("&")
+      .filter((p) => !p.startsWith("hash=") && !p.startsWith("signature="))
+      .sort((a, b) => a.localeCompare(b))
 
-    // Сортируем параметры
-    const keys = Array.from(params.keys()).sort()
-    const dataCheckString = keys.map((key) => `${key}=${params.get(key)}`).join("\n")
+    const dataCheckString = pairs.join("\n")
+    console.log("📋 ROUTE: Data check string:")
+    console.log(dataCheckString)
 
-    // Создаем секретный ключ из токена бота
-    const secretKey = createHash("sha256").update(botToken).digest()
+    // 3. secret_key = HMAC_SHA256(botToken, "WebAppData")
+    const secretKey = createHmac("sha256", "WebAppData")
+      .update(botToken)
+      .digest()
+    console.log("🔐 ROUTE: Secret key (hex):", secretKey.toString("hex"))
 
-    // Вычисляем HMAC
-    const calculatedHash = createHmac("sha256", secretKey).update(dataCheckString).digest("hex")
+    // 4. Calculate hash
+    const calculatedHash = createHmac("sha256", secretKey)
+      .update(dataCheckString)
+      .digest("hex")
 
     const isValid = calculatedHash === hash
-    console.log("Telegram WebApp data verification:", isValid)
+    console.log("🧮 ROUTE: Calculated hash:", calculatedHash)
+    console.log("📨 ROUTE: Expected hash:  ", hash)
+    console.log("✅ ROUTE: Hashes match:", isValid)
 
     return isValid
   } catch (error) {
-    console.error("Error verifying Telegram WebApp data:", error)
+    console.error("❌ ROUTE: Error verifying Telegram WebApp data:", error)
     return false
   }
 }
 
+// -------------------------------------------------------------
+// POST /api/auth/telegram  – main entry point called from the Mini App
+// -------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
@@ -55,53 +82,36 @@ export async function POST(request: NextRequest) {
     console.log("User data:", {
       id: user?.id,
       username: user?.username,
-      first_name: user?.first_name
+      first_name: user?.first_name,
     })
 
-    // В режиме разработки можем пропустить проверку initData
+    if (!user || !user.id) {
+      return NextResponse.json({ error: "User data is missing" }, { status: 400 })
+    }
+
     const isDevelopment = process.env.NODE_ENV === "development"
     console.log("Environment:", process.env.NODE_ENV)
     console.log("Is development:", isDevelopment)
 
-    // В production проверяем подпись Telegram, но только если initData присутствует
     if (!isDevelopment && initData) {
-      console.log("Verifying Telegram signature...")
       if (!verifyTelegramWebAppData(initData)) {
-        console.log("❌ Invalid Telegram signature for user:", user?.id)
         return NextResponse.json({ error: "Invalid authentication data" }, { status: 401 })
       }
 
-      // Проверка срока действия авторизации (не более 24 часов)
-      const authDate = Number.parseInt(new URLSearchParams(initData).get("auth_date") || "0") * 1000
-      const now = Date.now()
-      if (now - authDate > 86400000) {
-        console.log("❌ Expired auth data for user:", user?.id)
+      //   Prevent replay attacks (>24 h old)
+      const authDate = Number(new URLSearchParams(initData).get("auth_date")) * 1000
+      if (Date.now() - authDate > 86_400_000) {
         return NextResponse.json({ error: "Authentication data expired" }, { status: 401 })
       }
-      console.log("✅ Telegram signature verified")
-    } else {
-      console.log("⚠️ Skipping signature verification (development mode or no initData)")
     }
 
-    if (!user || !user.id) {
-      console.log("❌ User data is missing")
-      return NextResponse.json({ error: "User data is missing" }, { status: 400 })
-    }
-
-    // Поиск пользователя или создание нового
+    // -------------------------------------------------------------------
+    // Find or create user – business logic unchanged
+    // -------------------------------------------------------------------
     let dbUser = await getUserByTelegramId(user.id.toString())
 
     if (!dbUser) {
-      console.log("Creating new user:", user.id)
-
-      // Проверка, является ли пользователь администратором
       const isAdmin = user.id.toString() === process.env.ADMIN_TELEGRAM_ID
-      console.log("Admin check:", {
-        userId: user.id.toString(),
-        adminId: process.env.ADMIN_TELEGRAM_ID,
-        isAdmin
-      })
-
       dbUser = await createUser({
         telegram_id: user.id.toString(),
         username: user.username || null,
@@ -110,12 +120,7 @@ export async function POST(request: NextRequest) {
         avatar_url: user.photo_url || null,
         is_admin: isAdmin,
       })
-
-      console.log("✅ User created successfully:", dbUser.id)
     } else {
-      console.log("User found, updating data:", dbUser.id)
-
-      // Обновляем данные пользователя при каждом входе
       dbUser =
         (await updateUser(dbUser.id, {
           username: user.username || null,
@@ -126,29 +131,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (dbUser.is_blocked) {
-      console.log("❌ User is blocked:", dbUser.id)
       return NextResponse.json({ error: "Your account has been blocked" }, { status: 403 })
     }
 
-    // Генерируем JWT токен
     const token = createJWTToken({
       userId: dbUser.id,
       telegramId: dbUser.telegram_id,
-      isAdmin: dbUser.is_admin
+      isAdmin: dbUser.is_admin,
     })
 
-    console.log("Generated JWT token for user:", dbUser.id)
-
-    // Устанавливаем безопасные cookies
-    await setSecureCookies(dbUser.telegram_id, initData || '', token)
+    await setSecureCookies(dbUser.telegram_id, initData || "", token)
 
     console.log("✅ Authentication successful for user:", dbUser.id)
-    console.log("Final user data:", {
-      id: dbUser.id,
-      telegram_id: dbUser.telegram_id,
-      is_admin: dbUser.is_admin,
-      is_blocked: dbUser.is_blocked
-    })
     console.log("=== END TELEGRAM AUTH DEBUG ===")
 
     return NextResponse.json({

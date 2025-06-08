@@ -176,19 +176,25 @@ export function getTelegramInitData(): string | null {
   if (typeof window !== "undefined" && window.Telegram?.WebApp) {
     return window.Telegram.WebApp.initData
   }
-  // Мок-данные для разработки
+  // Мок-данные для разработки - НЕ ГЕНЕРИРУЕМ ФЕЙКОВЫЙ HASH!
   if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    // Сгенерируем тестовый hash (можно любой, так как сервер в dev не проверяет его)
     const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"
-    return new URLSearchParams({
-      id: devAdminId,
-      username: "dev_admin", 
-      first_name: "Dev",
-      last_name: "Admin",
-      photo_url: "https://t.me/i/userpic/320/dev_admin.jpg",
-      auth_date: Math.floor(Date.now() / 1000).toString(),
-      hash: "dev_hash_" + Date.now()
-    }).toString()
+    const authDate = Math.floor(Date.now() / 1000)
+    
+    // Возвращаем initData БЕЗ hash для dev режима
+    const params = new URLSearchParams({
+      user: JSON.stringify({
+        id: parseInt(devAdminId),
+        username: "dev_admin", 
+        first_name: "Dev",
+        last_name: "Admin",
+        photo_url: "https://t.me/i/userpic/320/dev_admin.jpg",
+      }),
+      auth_date: authDate.toString(),
+      query_id: "dev_query_" + Date.now()
+    })
+    
+    return params.toString()
   }
   return null
 }
