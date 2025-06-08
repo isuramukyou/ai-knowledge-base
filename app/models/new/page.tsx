@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Trash2 } from "lucide-react"
 import imageCompression from 'browser-image-compression';
 import { Switch } from "@/components/ui/switch"
+import { useAuthFetch } from "@/hooks/use-auth-fetch"
 
 interface Category {
   id: number
@@ -25,6 +26,7 @@ interface Currency {
 
 export default function NewModelPage() {
   const router = useRouter()
+  const { authFetch } = useAuthFetch()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [categoryId, setCategoryId] = useState("")
@@ -125,22 +127,8 @@ export default function NewModelPage() {
     }
 
     try {
-      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
-      
-      console.log("Creating model with telegram_id:", telegramId)
-      
-      if (!telegramId) {
-        setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
-        setLoading(false)
-        return
-      }
-      
-      const res = await fetch("/api/models", {
+      const res = await authFetch("/api/models", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-telegram-id": telegramId,
-        },
         body: JSON.stringify({
           name,
           description,
@@ -157,16 +145,15 @@ export default function NewModelPage() {
       } else {
         const errorData = await res.text()
         console.error("API Error:", res.status, errorData)
-        
-        if (res.status === 401) {
-          setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
-        } else {
-          setError(`Ошибка при создании модели: ${errorData}`)
-        }
+        setError(`Ошибка при создании модели: ${errorData}`)
       }
     } catch (e) {
       console.error("Network error:", e)
-      setError("Ошибка сети")
+      if (e instanceof Error && e.message.includes("авторизации")) {
+        setError(e.message)
+      } else {
+        setError("Ошибка сети")
+      }
     } finally {
       setLoading(false)
     }

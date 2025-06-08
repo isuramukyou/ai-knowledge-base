@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Users, Tags, FileText, Home, Pencil, Trash2 } from "lucide-react"
 import Pagination from "@/components/pagination"
 import { useRouter } from "next/navigation"
+import { useAuthFetch } from "@/hooks/use-auth-fetch"
 
 interface User {
   id: number
@@ -50,6 +51,7 @@ interface Stats {
 
 export default function AdminPageClient() {
   const router = useRouter()
+  const { authFetch } = useAuthFetch()
   const [users, setUsers] = useState<User[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [newCategory, setNewCategory] = useState({ name: "", color: "#000000" })
@@ -79,12 +81,7 @@ export default function AdminPageClient() {
       params.set("limit", "10")
       params.set("include_posts_count", "true")
 
-      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
-      const response = await fetch(`/api/admin/users?${params.toString()}`, {
-        headers: {
-          "x-telegram-id": telegramId || "",
-        },
-      })
+      const response = await authFetch(`/api/admin/users?${params.toString()}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -104,7 +101,7 @@ export default function AdminPageClient() {
   const fetchCategories = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/categories")
+      const response = await authFetch("/api/categories", { requireAuth: false })
       if (response.ok) {
         const data = await response.json()
         setCategories(data)
@@ -120,23 +117,18 @@ export default function AdminPageClient() {
   const fetchStats = async () => {
     setIsLoading(true)
     try {
-      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
       // Получаем количество моделей
-      const modelsRes = await fetch(`/api/models?page=1&limit=1`)
+      const modelsRes = await authFetch(`/api/models?page=1&limit=1`, { requireAuth: false })
       const modelsData = await modelsRes.json()
       // Получаем количество записей в базе знаний
-      const knowledgeRes = await fetch(`/api/knowledge?page=1&limit=1`)
+      const knowledgeRes = await authFetch(`/api/knowledge?page=1&limit=1`, { requireAuth: false })
       const knowledgeData = await knowledgeRes.json()
       // Получаем пользователей (админский эндпоинт)
-      const usersRes = await fetch(`/api/admin/users?page=1&limit=1`, {
-        headers: { "x-telegram-id": telegramId || "" },
-      })
+      const usersRes = await authFetch(`/api/admin/users?page=1&limit=1`)
       const usersData = await usersRes.json()
       // Получаем всех пользователей и фильтруем активных (is_blocked === false)
       // Для оптимизации можно сделать отдельный эндпоинт, но пока так:
-      const allUsersRes = await fetch(`/api/admin/users?page=1&limit=10000`, {
-        headers: { "x-telegram-id": telegramId || "" },
-      })
+      const allUsersRes = await authFetch(`/api/admin/users?page=1&limit=10000`)
       const allUsersData = await allUsersRes.json()
       const activeUsers = Array.isArray(allUsersData.users)
         ? allUsersData.users.filter((u: any) => !u.is_blocked).length
@@ -156,13 +148,8 @@ export default function AdminPageClient() {
   // Блокировка/разблокировка пользователя
   const toggleUserBlock = async (userId: number, isBlocked: boolean) => {
     try {
-      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
-      const response = await fetch(`/api/admin/users/${userId}/block`, {
+      const response = await authFetch(`/api/admin/users/${userId}/block`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-telegram-id": telegramId || "",
-        },
         body: JSON.stringify({ isBlocked }),
       })
 
@@ -180,13 +167,8 @@ export default function AdminPageClient() {
   const addCategory = async () => {
     if (newCategory.name.trim()) {
       try {
-        const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
-        const response = await fetch("/api/categories", {
+        const response = await authFetch("/api/categories", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-telegram-id": telegramId || "",
-          },
           body: JSON.stringify(newCategory),
         })
 
@@ -206,13 +188,8 @@ export default function AdminPageClient() {
   // Редактирование категории
   const updateCategory = async (id: number, name: string, color: string) => {
     try {
-      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
-      const response = await fetch(`/api/categories/${id}`, {
+      const response = await authFetch(`/api/categories/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-telegram-id": telegramId || "",
-        },
         body: JSON.stringify({ name, color }),
       })
 
@@ -231,12 +208,8 @@ export default function AdminPageClient() {
   // Удаление категории
   const deleteCategory = async (categoryId: number) => {
     try {
-      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
-      const response = await fetch(`/api/categories/${categoryId}`, {
+      const response = await authFetch(`/api/categories/${categoryId}`, {
         method: "DELETE",
-        headers: {
-          "x-telegram-id": telegramId || "",
-        },
       })
 
       if (response.ok) {

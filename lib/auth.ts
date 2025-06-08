@@ -70,10 +70,26 @@ export async function getCurrentUser() {
 export async function isCurrentUserAdmin(): Promise<boolean> {
   try {
     const user = await getCurrentUser()
-    return user?.is_admin || false
+    const isAdmin = user?.is_admin || false
+    
+    // В development режиме дополнительно проверяем переменную окружения
+    if (process.env.NODE_ENV === 'development') {
+      const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"
+      const isDev = user?.telegram_id === devAdminId
+      console.log('Admin check in dev:', { 
+        isAdmin, 
+        isDev, 
+        userId: user?.telegram_id, 
+        devAdminId 
+      })
+      return isAdmin || isDev
+    }
+    
+    return isAdmin
   } catch (error) {
     console.error('Error checking admin status:', error)
-    return false
+    // В development режиме разрешаем доступ при ошибке
+    return process.env.NODE_ENV === 'development'
   }
 }
 
@@ -106,15 +122,16 @@ export async function clearAuthCookies() {
 // Middleware helper для API routes
 export async function requireAuth(request: Request): Promise<{user: any, error?: string}> {
   try {
-    // Проверяем заголовки
-    const authHeader = request.headers.get('authorization')
+    // В Telegram Mini App используем headers, так как cookies могут блокироваться
     const telegramId = request.headers.get('x-telegram-id')
+    const authToken = request.headers.get('authorization')?.replace('Bearer ', '') || 
+                     request.headers.get('x-auth-token')
     
     if (!telegramId) {
       return { user: null, error: 'Missing telegram ID' }
     }
 
-    // Получаем пользователя
+    // Получаем пользователя из базы данных
     const user = await getUserByTelegramId(telegramId)
     
     if (!user) {
@@ -123,6 +140,14 @@ export async function requireAuth(request: Request): Promise<{user: any, error?:
     
     if (user.is_blocked) {
       return { user: null, error: 'User is blocked' }
+    }
+
+    // В режиме production дополнительно проверяем JWT токен если он передан
+    if (process.env.NODE_ENV === 'production' && authToken) {
+      const tokenPayload = verifyJWTToken(authToken)
+      if (!tokenPayload || tokenPayload.telegramId !== telegramId) {
+        return { user: null, error: 'Invalid auth token' }
+      }
     }
 
     return { user }

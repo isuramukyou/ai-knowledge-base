@@ -53,15 +53,18 @@ export async function POST(request: NextRequest) {
     // В режиме разработки можем пропустить проверку initData
     const isDevelopment = process.env.NODE_ENV === "development"
 
-    if (!isDevelopment && initData && !verifyTelegramWebAppData(initData)) {
-      return NextResponse.json({ error: "Invalid authentication data" }, { status: 401 })
-    }
-
-    // Проверка срока действия авторизации (не более 24 часов)
+    // В production проверяем подпись Telegram, но только если initData присутствует
     if (!isDevelopment && initData) {
+      if (!verifyTelegramWebAppData(initData)) {
+        console.log("Invalid Telegram signature for user:", user?.id)
+        return NextResponse.json({ error: "Invalid authentication data" }, { status: 401 })
+      }
+
+      // Проверка срока действия авторизации (не более 24 часов)
       const authDate = Number.parseInt(new URLSearchParams(initData).get("auth_date") || "0") * 1000
       const now = Date.now()
       if (now - authDate > 86400000) {
+        console.log("Expired auth data for user:", user?.id)
         return NextResponse.json({ error: "Authentication data expired" }, { status: 401 })
       }
     }

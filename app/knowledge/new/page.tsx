@@ -11,6 +11,7 @@ import dynamic from "next/dynamic"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { useAuthFetch } from "@/hooks/use-auth-fetch"
 import { Trash2 } from "lucide-react"
 import imageCompression from 'browser-image-compression';
 
@@ -28,6 +29,7 @@ const typeOptions = [
 
 export default function NewKnowledgePage() {
   const router = useRouter()
+  const { authFetch } = useAuthFetch()
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -116,22 +118,8 @@ export default function NewKnowledgePage() {
     }
 
     try {
-      const telegramId = typeof window !== "undefined" ? localStorage.getItem("telegram_id") : null
-      
-      console.log("Creating knowledge item with telegram_id:", telegramId)
-      
-      if (!telegramId) {
-        setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
-        setLoading(false)
-        return
-      }
-      
-      const res = await fetch("/api/knowledge", {
+      const res = await authFetch("/api/knowledge", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-telegram-id": telegramId,
-        },
         body: JSON.stringify({
           title,
           description,
@@ -149,16 +137,15 @@ export default function NewKnowledgePage() {
       } else {
         const errorData = await res.text()
         console.error("API Error:", res.status, errorData)
-        
-        if (res.status === 401) {
-          setError("Ошибка авторизации. Перезапустите приложение через Telegram.")
-        } else {
-          setError(`Ошибка при создании записи: ${errorData}`)
-        }
+        setError(`Ошибка при создании записи: ${errorData}`)
       }
     } catch (e: any) {
       console.error("Network error:", e)
-      setError("Ошибка сети: " + e.message)
+      if (e instanceof Error && e.message.includes("авторизации")) {
+        setError(e.message)
+      } else {
+        setError("Ошибка сети: " + e.message)
+      }
     } finally {
       setLoading(false)
     }

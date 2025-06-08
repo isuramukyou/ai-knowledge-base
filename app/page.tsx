@@ -72,7 +72,7 @@ export default function HomePage() {
 
   // Инициализация Telegram WebApp и получение данных пользователя
   useEffect(() => {
-    const initializeTelegram = async () => {
+        const initializeTelegram = async () => {
       console.log("Initializing Telegram WebApp...")
       
       // Проверяем, находимся ли мы в Telegram WebApp
@@ -130,25 +130,59 @@ export default function HomePage() {
         if (colorScheme) {
           setTheme(colorScheme)
         }
-             } else {
-         console.log("Not in Telegram WebApp, checking localStorage for existing auth...")
-         // Если не в Telegram WebApp, попробуем восстановить данные из localStorage
-         const existingTelegramId = localStorage.getItem("telegram_id")
-         if (existingTelegramId) {
-           console.log("Found existing telegram_id in localStorage:", existingTelegramId)
-           // Восстанавливаем базовые данные пользователя
-           setUser({
-             telegram_id: existingTelegramId,
-             first_name: "User",
-             last_name: null,
-             username: null,
-             avatar_url: null,
-           })
-         } else {
-           console.log("No existing auth found, showing manual auth option")
-           // В продакшене можем показать инструкцию по перезапуску через Telegram
-         }
-       }
+      } else {
+        console.log("Not in Telegram WebApp, checking localStorage for existing auth...")
+        // Если не в Telegram WebApp, попробуем восстановить данные из localStorage
+        const existingTelegramId = localStorage.getItem("telegram_id")
+        const existingToken = localStorage.getItem("auth_token")
+        
+        if (existingTelegramId && existingToken) {
+          console.log("Found existing auth in localStorage:", existingTelegramId)
+          // В режиме разработки или если есть валидные данные - создаем пользователя
+          const isDev = process.env.NODE_ENV === "development"
+          if (isDev) {
+            // В режиме разработки получаем пользователя из мока
+            const mockUser = getTelegramUser()
+            if (mockUser) {
+              setUser({
+                telegram_id: mockUser.id.toString(),
+                first_name: mockUser.first_name,
+                last_name: mockUser.last_name || null,
+                username: mockUser.username || null,
+                avatar_url: mockUser.photo_url || null,
+              })
+              // Аутентифицируем мок-пользователя
+              authenticateUser(mockUser)
+            }
+          } else {
+            // В продакшене восстанавливаем базовые данные
+            setUser({
+              telegram_id: existingTelegramId,
+              first_name: "User",
+              last_name: null,
+              username: null,
+              avatar_url: null,
+            })
+          }
+        } else {
+          console.log("No existing auth found")
+          // В режиме разработки все равно попробуем инициализировать мок-пользователя
+          const isDev = process.env.NODE_ENV === "development"
+          if (isDev) {
+            const mockUser = getTelegramUser()
+            if (mockUser) {
+              setUser({
+                telegram_id: mockUser.id.toString(),
+                first_name: mockUser.first_name,
+                last_name: mockUser.last_name || null,
+                username: mockUser.username || null,
+                avatar_url: mockUser.photo_url || null,
+              })
+              authenticateUser(mockUser)
+            }
+          }
+        }
+      }
     }
 
     initializeTelegram()
@@ -180,6 +214,12 @@ export default function HomePage() {
         
         // Для дополнительной безопасности храним данные авторизации в localStorage как fallback
         localStorage.setItem("telegram_init_data", initData || "")
+        
+        console.log("Auth data stored in localStorage:", {
+          telegram_id: telegramUser.id.toString(),
+          has_token: !!data.token,
+          has_initData: !!initData
+        })
       } else {
         console.error("Authentication failed:", await response.text())
       }
@@ -376,19 +416,15 @@ export default function HomePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={() => {
-              if (user?.is_admin) {
-                // Simple click for admin access
-                setShowAdminPanel(true)
-              }
-            }}
-          >
+          <div className="flex items-center gap-2">
             <span className="text-2xl">💢</span>
             <h1 className="text-xl font-semibold">База нейросетей</h1>
             {user?.is_admin && (
-              <Badge variant="secondary" className="text-xs ml-2">
+              <Badge 
+                variant="secondary" 
+                className="text-xs ml-2 cursor-pointer hover:bg-secondary/80"
+                onClick={() => setShowAdminPanel(true)}
+              >
                 Admin
               </Badge>
             )}

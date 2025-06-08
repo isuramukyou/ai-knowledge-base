@@ -87,67 +87,70 @@ export function getTelegramUser(): TelegramUser | null {
     }
   }
   
-  // Мок-данные для разработки
+    // Мок-данные для разработки  
   if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    // Создаем мок-объект Telegram WebApp
-    window.Telegram = {
-      WebApp: {
-        initData: "",
-        initDataUnsafe: {
-          user: {
-            id: 579218344,
-            username: "isuramukyou",
-            first_name: "Islam",
-            last_name: "Gasanov",
-            photo_url: "https://t.me/i/userpic/320/isuramukyou.jpg",
+    console.log("Creating mock Telegram user for development")
+    // Создаем мок-объект Telegram WebApp только если его еще нет
+    if (!window.Telegram) {
+      window.Telegram = {
+        WebApp: {
+          initData: "",
+          initDataUnsafe: {
+            user: {
+              id: parseInt(process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"),
+              username: "dev_admin",
+              first_name: "Dev",
+              last_name: "Admin",
+              photo_url: "https://t.me/i/userpic/320/dev_admin.jpg",
+            },
+            auth_date: Math.floor(Date.now() / 1000),
+            hash: "dev_hash_" + Date.now()
           },
-          auth_date: 1710000000,
-          hash: "testhash1234567890"
-        },
-        colorScheme: "light",
-        viewportHeight: 800,
-        viewportStableHeight: 800,
-        isExpanded: true,
-        expand: () => {},
-        close: () => {},
-        ready: () => {},
-        MainButton: {
-          text: "",
-          color: "",
-          textColor: "",
-          isVisible: false,
-          isActive: false,
-          isProgressVisible: false,
-          show: () => {},
-          hide: () => {},
-          enable: () => {},
-          disable: () => {},
-          showProgress: () => {},
-          hideProgress: () => {},
-          onClick: () => {},
-          offClick: () => {},
-          setText: () => {},
-          setParams: () => {},
-        },
-        BackButton: {
-          isVisible: false,
-          show: () => {},
-          hide: () => {},
-          onClick: () => {},
-          offClick: () => {},
-        },
-        HapticFeedback: {
-          impactOccurred: () => {},
-          notificationOccurred: () => {},
-          selectionChanged: () => {},
-        },
-        onEvent: () => {},
-        offEvent: () => {},
-        sendData: () => {},
-        openLink: () => {},
-        openTelegramLink: () => {},
-        setHeaderColor: () => {},
-        setBackgroundColor: () => {},
+          colorScheme: "light",
+          viewportHeight: 800,
+          viewportStableHeight: 800,
+          isExpanded: true,
+          expand: () => {},
+          close: () => {},
+          ready: () => {},
+          MainButton: {
+            text: "",
+            color: "",
+            textColor: "",
+            isVisible: false,
+            isActive: false,
+            isProgressVisible: false,
+            show: () => {},
+            hide: () => {},
+            enable: () => {},
+            disable: () => {},
+            showProgress: () => {},
+            hideProgress: () => {},
+            onClick: () => {},
+            offClick: () => {},
+            setText: () => {},
+            setParams: () => {},
+          },
+          BackButton: {
+            isVisible: false,
+            show: () => {},
+            hide: () => {},
+            onClick: () => {},
+            offClick: () => {},
+          },
+          HapticFeedback: {
+            impactOccurred: () => {},
+            notificationOccurred: () => {},
+            selectionChanged: () => {},
+          },
+          onEvent: () => {},
+          offEvent: () => {},
+          sendData: () => {},
+          openLink: () => {},
+          openTelegramLink: () => {},
+          setHeaderColor: () => {},
+          setBackgroundColor: () => {},
+        }
       }
     }
     return window.Telegram.WebApp.initDataUnsafe.user || null
@@ -176,14 +179,15 @@ export function getTelegramInitData(): string | null {
   // Мок-данные для разработки
   if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
     // Сгенерируем тестовый hash (можно любой, так как сервер в dev не проверяет его)
+    const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"
     return new URLSearchParams({
-      id: "579218344",
-      username: "isuramukyou",
-      first_name: "Islam",
-      last_name: "Gasanov",
-      photo_url: "https://t.me/i/userpic/320/isuramukyou.jpg",
-      auth_date: "1710000000",
-      hash: "testhash1234567890"
+      id: devAdminId,
+      username: "dev_admin", 
+      first_name: "Dev",
+      last_name: "Admin",
+      photo_url: "https://t.me/i/userpic/320/dev_admin.jpg",
+      auth_date: Math.floor(Date.now() / 1000).toString(),
+      hash: "dev_hash_" + Date.now()
     }).toString()
   }
   return null
