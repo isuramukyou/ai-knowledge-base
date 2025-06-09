@@ -51,6 +51,7 @@ async def start_command(message: types.Message):
             url=TELEGRAM_CHAT_URL
         )
     )
+    keyboard.adjust(1, 1, 1)
     await message.answer(
         "Привет, исследователь ИИ!\n\n⚡️ Добро пожаловать в базу знаний о нейросетях\n\n",
         reply_markup=keyboard.as_markup()
