@@ -69,6 +69,11 @@ function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("auth_token", data.token)
         localStorage.setItem("telegram_init_data", initData || "")
         
+        // Update user state with data from server response
+        if (data.user) {
+          setUser(data.user)
+        }
+        
         console.log("Auth successful, data stored:", {
           telegram_id: telegramUser.id.toString(),
           has_token: !!data.token,

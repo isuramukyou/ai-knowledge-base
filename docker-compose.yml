@@ -64,6 +64,8 @@ services:
     container_name: ai_knowledge_telegram_bot
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_MINI_APP_URL=${TELEGRAM_MINI_APP_URL}
+      - TELEGRAM_CHAT_URL=${TELEGRAM_CHAT_URL}
       - API_URL=http://app:3000
     depends_on:
       - app

@@ -4,7 +4,8 @@ from typing import List, Optional
 import aiohttp
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import InlineQueryResultArticle, InputTextMessageContent
+from aiogram.types import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -16,6 +17,8 @@ dp = Dispatcher()
 
 # API endpoint for search
 API_URL = os.getenv("API_URL", "http://app:3000")
+TELEGRAM_MINI_APP_URL = os.getenv("TELEGRAM_MINI_APP_URL")
+TELEGRAM_CHAT_URL = os.getenv("TELEGRAM_CHAT_URL")
 
 async def search_items(query: str) -> List[dict]:
     """Search for items using the API"""
@@ -31,6 +34,27 @@ async def search_items(query: str) -> List[dict]:
             knowledge_items = knowledge.get("items", [])
 
         return model_items + knowledge_items
+
+@dp.message(Command("start"))
+async def start_command(message: types.Message):
+    """Handle start command"""
+    keyboard = InlineKeyboardBuilder()
+    keyboard.add(
+        InlineKeyboardButton(
+            text='📚 Открыть базу знаний',
+            web_app=types.WebAppInfo(url=TELEGRAM_MINI_APP_URL)
+        )
+    )
+    keyboard.add(
+        InlineKeyboardButton(
+            text='💬 Наш чат',
+            url=TELEGRAM_CHAT_URL
+        )
+    )
+    await message.answer(
+        "Привет, исследователь ИИ!\n\n⚡️ Добро пожаловать в базу знаний о нейросетях\n\n",
+        reply_markup=keyboard.as_markup()
+    )
 
 @dp.inline_query()
 async def inline_search(inline_query: types.InlineQuery):

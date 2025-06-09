@@ -76,12 +76,6 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
     if (process.env.NODE_ENV === 'development') {
       const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"
       const isDev = user?.telegram_id === devAdminId
-      console.log('Admin check in dev:', { 
-        isAdmin, 
-        isDev, 
-        userId: user?.telegram_id, 
-        devAdminId 
-      })
       return isAdmin || isDev
     }
     

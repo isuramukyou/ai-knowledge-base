@@ -407,7 +407,8 @@ export default function HomePage() {
                   <Button
                     className="flex-1"
                     onClick={() => {
-                      window.location.href = "/admin"
+                      setShowAdminPanel(false)
+                      router.push("/admin")
                     }}
                   >
                     Перейти
@@ -480,7 +481,7 @@ export default function HomePage() {
                   </Button>
                 )}
                 {/* Кнопки редактирования/удаления */}
-                {(user && (user.is_admin || user.telegram_id === selectedModel.author_username || user.telegram_id === selectedModel.author_id?.toString())) && (
+                {(user && (user.is_admin || user.id === selectedModel.author_id)) && (
                   <div className="flex gap-2 mt-4">
                     <Button variant="ghost" size="sm" onClick={() => router.push(`/models/${selectedModel.id}/edit`)}>
                       <Edit className="w-4 h-4" />
@@ -599,7 +600,7 @@ export default function HomePage() {
                 </div>
               ) : null}
               {/* Edit and Delete Buttons (Optional, based on permissions) */}
-              {(user && (user.is_admin || user.telegram_id === selectedKnowledge.author_username || user.telegram_id === selectedKnowledge.author_id?.toString())) && (
+              {(user && (user.is_admin || user.id === selectedKnowledge.author_id)) && (
                 <div className="flex gap-2 mt-4">
                    <Button variant="ghost" size="sm" onClick={() => router.push(`/knowledge/${selectedKnowledge.id}/edit`)}>
                      <Edit className="w-4 h-4" />
