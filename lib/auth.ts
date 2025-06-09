@@ -41,24 +41,33 @@ export async function getCurrentUser() {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth_token')?.value
+    const telegramId = cookieStore.get('telegram_id')?.value
+    
+    console.log('getCurrentUser cookies:', { hasToken: !!token, telegramId })
     
     if (!token) {
+      console.log('getCurrentUser: No auth token found')
       return null
     }
 
     const payload = verifyJWTToken(token)
     if (!payload) {
+      console.log('getCurrentUser: Invalid JWT token')
       return null
     }
+
+    console.log('getCurrentUser JWT payload:', { telegramId: payload.telegramId, isAdmin: payload.isAdmin })
 
     // Получаем актуальные данные пользователя из БД
     const user = await getUserByTelegramId(payload.telegramId)
     
     // Проверяем, что пользователь не заблокирован
     if (!user || user.is_blocked) {
+      console.log('getCurrentUser: User not found or blocked', { userExists: !!user, isBlocked: user?.is_blocked })
       return null
     }
 
+    console.log('getCurrentUser: User found', { id: user.id, telegramId: user.telegram_id, isAdmin: user.is_admin })
     return user
   } catch (error) {
     console.error('Error getting current user:', error)
@@ -72,11 +81,21 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
     const user = await getCurrentUser()
     const isAdmin = user?.is_admin || false
     
+    console.log('isCurrentUserAdmin check:', { 
+      userExists: !!user, 
+      isAdmin, 
+      telegramId: user?.telegram_id,
+      env: process.env.NODE_ENV 
+    })
+    
     // В development режиме дополнительно проверяем переменную окружения
     if (process.env.NODE_ENV === 'development') {
-      const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"
-      const isDev = user?.telegram_id === devAdminId
-      return isAdmin || isDev
+      const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || process.env.ADMIN_TELEGRAM_ID
+      if (devAdminId) {
+        const isDev = user?.telegram_id === devAdminId
+        console.log('Dev admin check:', { isDev, devAdminId, userTelegramId: user?.telegram_id })
+        return isAdmin || isDev
+      }
     }
     
     return isAdmin

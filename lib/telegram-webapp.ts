@@ -97,7 +97,7 @@ export function getTelegramUser(): TelegramUser | null {
           initData: "",
           initDataUnsafe: {
             user: {
-              id: parseInt(process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"),
+              id: parseInt(process.env.NEXT_PUBLIC_DEV_ADMIN_ID || process.env.ADMIN_TELEGRAM_ID || "0"),
               username: "dev_admin",
               first_name: "Dev",
               last_name: "Admin",
@@ -178,7 +178,7 @@ export function getTelegramInitData(): string | null {
   }
   // Мок-данные для разработки - НЕ ГЕНЕРИРУЕМ ФЕЙКОВЫЙ HASH!
   if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || "579218344"
+    const devAdminId = process.env.NEXT_PUBLIC_DEV_ADMIN_ID || process.env.ADMIN_TELEGRAM_ID || "0"
     const authDate = Math.floor(Date.now() / 1000)
     
     // Возвращаем initData БЕЗ hash для dev режима
