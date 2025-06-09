@@ -1,55 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createHash, createHmac } from 'crypto'
 
-// Функция для проверки данных авторизации Telegram WebApp
-function verifyTelegramWebAppData(initData: string): boolean {
-  try {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN
-    if (!botToken) {
-      console.error("❌ TELEGRAM_BOT_TOKEN is not defined")
-      return false
-    }
-
-    // Extract hash
-    const hashMatch = initData.match(/hash=([^&]*)/);
-    if (!hashMatch) {
-      console.error("❌ No hash found in initData");
-      return false;
-    }
-    const hash = hashMatch[1];
-
-    // Parse parameters: remove only hash, keep signature
-    const params = initData.split('&')
-      .filter(p => !p.startsWith('hash='))
-      .map(p => {
-        const eqIndex = p.indexOf('=');
-        return {
-          key: p.substring(0, eqIndex),
-          value: decodeURIComponent(p.substring(eqIndex + 1) || '')
-        };
-      });
-
-    // Sort by key
-    params.sort((a, b) => a.key.localeCompare(b.key));
-
-    // Build data check string
-    const dataCheckString = params.map(p => `${p.key}=${p.value}`).join('\n');
-
-    // Create secret key
-    const secretKey = createHmac("sha256", "WebAppData").update(botToken).digest()
-
-    // Calculate hash
-    const calculatedHash = createHmac("sha256", secretKey)
-      .update(dataCheckString, "utf8")
-      .digest("hex")
-
-    return calculatedHash === hash;
-  } catch (error) {
-    console.error("❌ Error verifying Telegram WebApp data:", error)
-    return false
-  }
-}
 
 // Функция для получения пользователя из базы данных
 async function getUserByTelegramId(telegramId: string) {
@@ -122,5 +73,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/admin/:path*',
-  ]
+  ],
+  runtime: 'nodejs'
 } 

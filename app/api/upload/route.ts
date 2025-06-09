@@ -15,28 +15,40 @@ const s3Client = new S3Client({
 });
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const file = formData.get("file");
-
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json({ error: "No file uploaded." }, { status: 400 });
-  }
-
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  // Generate a unique filename
-  const fileExtension = file.name.split('.').pop();
-  const uniqueFilename = `${uuidv4()}.${fileExtension}`;
-
-  const params = {
-    Bucket: process.env.S3_BUCKET_NAME!,
-    Key: `ai_knowledge_base/${uniqueFilename}`,
-    Body: buffer,
-    ContentType: file.type,
-  };
-
   try {
+    const formData = await request.formData();
+    const file = formData.get("file");
+
+    if (!file) {
+      return NextResponse.json({ error: "No file uploaded." }, { status: 400 });
+    }
+
+    // В Node.js окружении файл из FormData может быть File или Blob
+    let fileName: string;
+    let fileType: string;
+
+    if (file instanceof Blob) {
+      // Проверяем, есть ли свойство name (для File)
+      fileName = (file as any).name || 'file';
+      fileType = file.type || 'application/octet-stream';
+    } else {
+      return NextResponse.json({ error: "Invalid file format." }, { status: 400 });
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Generate a unique filename
+    const fileExtension = fileName.split('.').pop() || 'bin';
+    const uniqueFilename = `${uuidv4()}.${fileExtension}`;
+
+    const params = {
+      Bucket: process.env.S3_BUCKET_NAME!,
+      Key: `ai_knowledge_base/${uniqueFilename}`,
+      Body: buffer,
+      ContentType: fileType,
+    };
+
     const uploader = new Upload({
       client: s3Client,
       params,
@@ -54,9 +66,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-// Add a placeholder for the S3_ENDPOINT env var in next-env.d.ts
-// This is a temporary measure if you don't have a proper declaration for it.
-// In a real project, you'd ideally have a more robust env var handling with type definitions.
-// I will also add a .gitignore entry for .env if it doesn't exist. 
+} 

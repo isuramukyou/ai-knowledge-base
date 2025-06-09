@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  serverExternalPackages: ['pg', 'pg-native'],
+  serverExternalPackages: ['pg', 'pg-native'], // ✅ Современный вариант (Next.js 13.3+)
   eslint: {
     ignoreDuringBuilds: true,
   },
